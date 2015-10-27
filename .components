@@ -1,0 +1,10 @@
+---
+:orm: activerecord
+:test: none
+:mock: none
+:script: none
+:renderer: none
+:stylesheet: none
+:namespace: RedshiftLoaderApp
+:migration_format: number
+:admin_renderer: erb
