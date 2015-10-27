@@ -27,6 +27,10 @@ class Account < ActiveRecord::Base
     ::BCrypt::Password.new(crypted_password) == password
   end
 
+  def admin?
+    role == "admin"
+  end
+
   private
 
   def encrypt_password
@@ -38,4 +42,5 @@ class Account < ActiveRecord::Base
   def password_required
     crypted_password.blank? || password.present?
   end
+
 end
