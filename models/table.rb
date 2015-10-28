@@ -1,4 +1,5 @@
 class Table < ActiveRecord::Base
+    
     belongs_to :job
 
     def self.admin_fields 
@@ -12,13 +13,39 @@ class Table < ActiveRecord::Base
         }
     end
 
-    def copy
-        if insert_only
-            result = DestinationDb.connection.execute("SELECT MAX(#{primary_key}) AS max FROM #{destination_name}")
-            max_primary_key = result.first['max'] || 0
-            p "Max #{primary_key} is #{max_primary_key}"
+    def source_connection
+        job.source_connection
+    end
 
-            result = SourceDb.connection.execute("SELECT * FROM #{source_name} WHERE #{primary_key} > #{max_primary_key} ORDER BY #{primary_key} ASC LIMIT #{import_row_limit}")
+    def destination_connection
+        job.destination_connection
+    end
+
+    #rough-n-ready check if the tables have the same columns
+    def check
+        source_columns = source_connection.columns(source_name).map{|col| col.name }
+        destination_columns = destination_connection.columns(destination_name).map{|col| col.name }
+        source_columns == destination_columns
+    end
+
+    def copy
+        unless check
+            puts "Aborting copy! Tables #{source_name}, #{destination_name} don't match."
+            return
+        end
+
+        if insert_only
+            result = destination_connection.execute("SELECT MAX(#{primary_key}) AS max FROM #{destination_name}")
+
+            # assumes primary_key is a number
+            where_statement = if result.first['max']
+                "WHERE #{primary_key} > #{result.first['max']}"
+            end
+
+            sql = "SELECT * FROM #{source_name} #{where_statement} ORDER BY #{primary_key} ASC LIMIT #{import_row_limit}"
+            puts sql
+
+            result = source_connection.execute(sql)
 
             result.each_slice(import_chunk_size) do |slice|
                 csv_string = CSV.generate do |csv|
@@ -34,21 +61,26 @@ class Table < ActiveRecord::Base
 
                 # Import the data to Redshift
                 
-                DestinationDb.connection.execute("copy #{destination_name} from 's3://#{bucket_name}/#{filename}' 
+                destination_connection.execute("copy #{destination_name} from 's3://#{bucket_name}/#{filename}' 
                     credentials 'aws_access_key_id=#{ENV['AWS_ACCESS_KEY_ID']};aws_secret_access_key=#{ENV['AWS_SECRET_ACCESS_KEY']}' delimiter ',' CSV QUOTE AS '\"' ;")
 
                 text_file.destroy
             end
 
         else
-            result = DestinationDb.connection.execute("SELECT MAX(#{updated_key}) AS max FROM #{destination_name}")
-            max_updated_key = result.first['max'] || 0
-            p "Max #{updated_key} is #{max_updated_key}"
+            result = destination_connection.execute("SELECT MAX(#{updated_key}) AS max FROM #{destination_name}")
 
-            result = SourceDb.connection.execute("SELECT * FROM #{source_name} WHERE #{updated_key} >= '#{max_updated_key}' ORDER BY #{updated_key} ASC LIMIT #{import_row_limit}")
+            where_statement = if result.first['max']
+                "WHERE #{updated_key} >= '#{result.first['max']}'"
+            end
+
+            sql = "SELECT * FROM #{source_name} #{where_statement} ORDER BY #{updated_key} ASC LIMIT #{import_row_limit}"
+            puts sql
+
+            result = source_connection.execute(sql)
 
             if result.count > 1
-                DestinationDb.connection.execute("CREATE TEMP TABLE stage (LIKE #{destination_name});")
+                destination_connection.execute("CREATE TEMP TABLE stage (LIKE #{destination_name});")
 
                 result.each_slice(import_chunk_size) do |slice|
                     csv_string = CSV.generate do |csv|
@@ -63,18 +95,18 @@ class Table < ActiveRecord::Base
                     text_file.save
 
                     # Import the data to Redshift
-                    DestinationDb.connection.execute("COPY stage from 's3://#{bucket_name}/#{filename}' 
+                    destination_connection.execute("COPY stage from 's3://#{bucket_name}/#{filename}' 
                       credentials 'aws_access_key_id=#{ENV['AWS_ACCESS_KEY_ID']};aws_secret_access_key=#{ENV['AWS_SECRET_ACCESS_KEY']}' delimiter ',' CSV QUOTE AS '\"' ;")
 
                     text_file.destroy
                 end
 
-                DestinationDb.transaction do
-                    DestinationDb.connection.execute("DELETE FROM #{destination_name} USING stage WHERE #{destination_name}.#{primary_key} = stage.#{primary_key}")
-                    DestinationDb.connection.execute("INSERT INTO #{destination_name} SELECT * FROM stage")
+                destination_connection.transaction do
+                    destination_connection.execute("DELETE FROM #{destination_name} USING stage WHERE #{destination_name}.#{primary_key} = stage.#{primary_key}")
+                    destination_connection.execute("INSERT INTO #{destination_name} SELECT * FROM stage")
                 end
 
-                DestinationDb.connection.execute("DROP TABLE stage;")
+                destination_connection.execute("DROP TABLE stage;")
 
             end
         end
