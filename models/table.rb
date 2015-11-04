@@ -25,7 +25,7 @@ class Table < ActiveRecord::Base
     def check
         source_columns = source_connection.columns(source_name).map{|col| col.name }
         destination_columns = destination_connection.columns(destination_name).map{|col| col.name }
-        source_columns == destination_columns
+        source_columns.sort == destination_columns.sort
     end
 
     def copy
@@ -33,6 +33,8 @@ class Table < ActiveRecord::Base
             puts "Aborting copy! Tables #{source_name}, #{destination_name} don't match."
             return
         end
+
+        destination_columns = destination_connection.columns(destination_name).map{|col| col.name }
 
         if insert_only
             result = destination_connection.execute("SELECT MAX(#{primary_key}) AS max FROM #{destination_name}")
@@ -42,7 +44,7 @@ class Table < ActiveRecord::Base
                 "WHERE #{primary_key} > #{result.first['max']}"
             end
 
-            sql = "SELECT * FROM #{source_name} #{where_statement} ORDER BY #{primary_key} ASC LIMIT #{import_row_limit}"
+            sql = "SELECT #{destination_columns.join(',')} FROM #{source_name} #{where_statement} ORDER BY #{primary_key} ASC LIMIT #{import_row_limit}"
             puts sql
 
             result = source_connection.execute(sql)
@@ -74,7 +76,7 @@ class Table < ActiveRecord::Base
                 "WHERE #{updated_key} >= '#{result.first['max']}'"
             end
 
-            sql = "SELECT * FROM #{source_name} #{where_statement} ORDER BY #{updated_key} ASC LIMIT #{import_row_limit}"
+            sql = "SELECT #{destination_columns.join(',')} FROM #{source_name} #{where_statement} ORDER BY #{updated_key} ASC LIMIT #{import_row_limit}"
             puts sql
 
             result = source_connection.execute(sql)
