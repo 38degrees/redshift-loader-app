@@ -34,7 +34,7 @@ class Table < ActiveRecord::Base
             return
         end
 
-        destination_columns = destination_connection.columns(destination_name).map{|col| col.name }
+        destination_columns = destination_connection.columns(destination_name).map{|col| "`col.name`" }
 
         if insert_only
             result = destination_connection.execute("SELECT MAX(#{primary_key}) AS max FROM #{destination_name}")
