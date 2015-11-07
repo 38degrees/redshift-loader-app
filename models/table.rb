@@ -30,7 +30,7 @@ class Table < ActiveRecord::Base
 
     def copy
         unless check
-            puts "Aborting copy! Tables #{source_name}, #{destination_name} don't match."
+            logger.info "Aborting copy! Tables #{source_name}, #{destination_name} don't match."
             return
         end
 
@@ -45,7 +45,7 @@ class Table < ActiveRecord::Base
             end
 
             sql = "SELECT #{destination_columns.join(',')} FROM #{source_name} #{where_statement} ORDER BY #{primary_key} ASC LIMIT #{import_row_limit}"
-            puts sql
+            logger.info sql
 
             result = source_connection.execute(sql)
 
@@ -70,14 +70,14 @@ class Table < ActiveRecord::Base
             end
 
         else
-            result = destination_connection.execute("SELECT MAX(#{updated_key}) AS max FROM #{destination_name}")
+            result = destination_connection.execute("SELECT MAX(#{updated_key}) AS max_updated_key, MAX(#{primary_key}) AS max_primary_key FROM #{destination_name}")
 
-            where_statement = if result.first['max']
-                "WHERE #{updated_key} >= '#{result.first['max']}'"
+            where_statement = if result.first['max_updated_key']
+                "WHERE #{updated_key} >= '#{result.first['max_updated_key']}' AND #{primary_key} > #{result.first['max_primary_key']}"
             end
 
-            sql = "SELECT #{destination_columns.join(',')} FROM #{source_name} #{where_statement} ORDER BY #{updated_key} ASC LIMIT #{import_row_limit}"
-            puts sql
+            sql = "SELECT #{destination_columns.join(',')} FROM #{source_name} #{where_statement} ORDER BY #{updated_key}, #{primary_key} ASC LIMIT #{import_row_limit}"
+            logger.info sql
 
             result = source_connection.execute(sql)
 
