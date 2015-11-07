@@ -70,11 +70,18 @@ class Table < ActiveRecord::Base
             end
 
         else
-            result = destination_connection.execute("SELECT MAX(#{updated_key}) AS max_updated_key, MAX(#{primary_key}) AS max_primary_key FROM #{destination_name}")
+            result = destination_connection.execute("SELECT MAX(#{updated_key}) AS max FROM #{destination_name}")
 
-            where_statement = if result.first['max_updated_key']
-                "WHERE #{updated_key} >= '#{result.first['max_updated_key']}' AND #{primary_key} > #{result.first['max_primary_key']}"
+            max_updated_key = result.first['max']
+
+            where_statement = if max_updated_key 
+                result = destination_connection.execute("SELECT MAX(#{primary_key}) AS max FROM #{destination_name}")
+                max_primary_key = result.first['max']
+                "WHERE ( #{updated_key} >= '#{max_updated_key}' AND #{primary_key} > #{max_primary_key}) OR #{updated_key} > '#{max_updated_key}'"
             end
+
+            
+
 
             sql = "SELECT #{destination_columns.join(',')} FROM #{source_name} #{where_statement} ORDER BY #{updated_key}, #{primary_key} ASC LIMIT #{import_row_limit}"
             logger.info sql
