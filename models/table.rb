@@ -75,7 +75,7 @@ class Table < ActiveRecord::Base
             max_updated_key = result.first['max']
 
             where_statement = if max_updated_key 
-                result = destination_connection.execute("SELECT MAX(#{primary_key}) AS max FROM #{destination_name}")
+                result = destination_connection.execute("SELECT MAX(#{primary_key}) AS max FROM #{destination_name} WHERE #{updated_key} = '#{max_updated_key}'")
                 max_primary_key = result.first['max']
                 "WHERE ( #{updated_key} >= '#{max_updated_key}' AND #{primary_key} > #{max_primary_key}) OR #{updated_key} > '#{max_updated_key}'"
             end
