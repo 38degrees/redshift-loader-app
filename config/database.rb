@@ -25,9 +25,6 @@ ActiveSupport.escape_html_entities_in_json = false
 
 
 ActiveRecord::Base.establish_connection(ENV['DATABASE_URL'])
-ActiveRecord::Base.establish_connection(
-    ActiveRecord::Base.connection_config.merge({reconnect: true})
-    ) #force reconnect = true
 
 # Timestamps are in the utc by default.
 ActiveRecord::Base.default_timezone = :utc
