@@ -15,20 +15,8 @@ module Clockwork
 
     # Because job is cached we need to retrieve a fresh copy from DB to see if it is indeed still running
     job = ClockworkEvent.find(clockwork_event.id)
-
-    if job.running && (DateTime.now - job.last_run_at.to_datetime) * 1.day > 1.hour
-        job.running = false
-        job.save
-        logger.info "ClockworkEvent '#{job.name}' stuck in running state for 1 hour - resetting..."
-    end
-
-    if !job.running
-        if job.queue
-            job.delay(:queue => job.queue).perform
-        else
-            job.delay.perform
-        end
-    end
+    job.schedule
+   
   end
 
   error_handler do |error|

@@ -17,21 +17,53 @@ class ClockworkEvent < ActiveRecord::Base
       }
     end
 
+    def schedule
+
+      puts (DateTime.now - last_run_at.to_datetime) * 1.day
+      if running && (DateTime.now - last_run_at.to_datetime) * 1.day > 61.seconds
+          update_attribute(:running, false)
+          logger.info "ClockworkEvent '#{name}' stuck in running state - resetting..."
+      end
+
+      if !running
+          if queue
+              self.delay(:queue => job.queue).perform
+          else
+              self.delay.perform
+          end
+      end
+     
+    end
+
     def perform
+        reload
+        puts running
         if !running
           update_attribute(:running, true)
-          update_attribute(:last_run_at, Time.now)    
+          update_attribute(:last_run_at, DateTime.now)    
           update_attribute(:runs, (runs || 0) + 1)
+
+          check_thread = Thread.new do
+            loop do
+              sleep 60
+              update_attribute(:last_run_at, DateTime.now)
+              puts "#{self.name} checking in..."
+            end
+          end
+
           begin
             eval(statement) 
-            update_attribute(:last_succeeded_at, Time.now)
+            update_attribute(:last_succeeded_at, DateTime.now)
             update_attribute(:error_message, nil)
           rescue Exception => e
             update_attribute(:error_message, e.message)
             raise e
           ensure
+            puts "This always happens"
             update_attribute(:running, false)
-          end          
+            check_thread.exit            
+          end  
+                  
         end        
     end
 
