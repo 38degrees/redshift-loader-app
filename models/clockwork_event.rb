@@ -19,7 +19,6 @@ class ClockworkEvent < ActiveRecord::Base
 
     def schedule
 
-      puts (DateTime.now - last_run_at.to_datetime) * 1.day
       if running && (DateTime.now - last_run_at.to_datetime) * 1.day > 61.seconds
           update_attribute(:running, false)
           logger.info "ClockworkEvent '#{name}' stuck in running state - resetting..."
@@ -37,7 +36,6 @@ class ClockworkEvent < ActiveRecord::Base
 
     def perform
         reload
-        puts running
         if !running
           update_attribute(:running, true)
           update_attribute(:last_run_at, DateTime.now)    
@@ -59,7 +57,6 @@ class ClockworkEvent < ActiveRecord::Base
             update_attribute(:error_message, e.message)
             raise e
           ensure
-            puts "This always happens"
             update_attribute(:running, false)
             check_thread.exit            
           end  
