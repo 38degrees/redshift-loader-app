@@ -88,7 +88,7 @@ class Table < ActiveRecord::Base
 
             result = source_connection.execute(sql)
 
-            if result.count > 1
+            if result.count > 0
                 destination_connection.execute("CREATE TEMP TABLE stage (LIKE #{destination_name});")
 
                 result.each_slice(import_chunk_size) do |slice|
