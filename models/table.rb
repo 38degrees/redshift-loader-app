@@ -30,8 +30,7 @@ class Table < ActiveRecord::Base
 
     def copy
         unless check
-            logger.info "Aborting copy! Tables #{source_name}, #{destination_name} don't match."
-            return
+            raise "Aborting copy! Tables #{source_name}, #{destination_name} don't match."
         end
 
         destination_columns = destination_connection.columns(destination_name).map{|col| "#{source_name}.#{col.name}" }
@@ -50,23 +49,35 @@ class Table < ActiveRecord::Base
             result = source_connection.execute(sql)
 
             result.each_slice(import_chunk_size) do |slice|
-                csv_string = CSV.generate do |csv|
+                if self.job.destination_connection_string.split(':')[0] == 'redshift'
+
+                    csv_string = CSV.generate do |csv|
+                        slice.each do |row|
+                            csv << row.values
+                        end
+                    end 
+
+                    filename = "#{source_name}_#{Time.now.to_i}.txt"
+                    text_file = bucket.objects.build(filename)
+                    text_file.content = csv_string
+                    text_file.save
+
+                    # Import the data 
+                    
+                    destination_connection.execute("copy #{destination_name} from 's3://#{bucket_name}/#{filename}' 
+                        credentials 'aws_access_key_id=#{ENV['AWS_ACCESS_KEY_ID']};aws_secret_access_key=#{ENV['AWS_SECRET_ACCESS_KEY']}' delimiter ',' CSV QUOTE AS '\"' ;")
+
+                    text_file.destroy
+                elsif 
+                    value_strings = []
+
                     slice.each do |row|
-                        csv << row.values
-                    end
-                end 
+                        value_string = row.map{ |key, value| ActiveRecord::Base.connection.quote(value) }.join(',')
+                        value_strings << ("(" + value_string + ")")
+                    end; 0
 
-                filename = "#{source_name}_#{Time.now.to_i}.txt"
-                text_file = bucket.objects.build(filename)
-                text_file.content = csv_string
-                text_file.save
-
-                # Import the data to Redshift
-                
-                destination_connection.execute("copy #{destination_name} from 's3://#{bucket_name}/#{filename}' 
-                    credentials 'aws_access_key_id=#{ENV['AWS_ACCESS_KEY_ID']};aws_secret_access_key=#{ENV['AWS_SECRET_ACCESS_KEY']}' delimiter ',' CSV QUOTE AS '\"' ;")
-
-                text_file.destroy
+                    sql = "INSERT INTO #{temp_table_name} (mailing_recipient_id, click_or_open, created_at) VALUES #{value_strings.join(',')}"; 0
+                end
             end
 
         else
@@ -79,9 +90,6 @@ class Table < ActiveRecord::Base
                 max_primary_key = result.first['max']
                 "WHERE ( #{updated_key} >= '#{max_updated_key}' AND #{primary_key} > #{max_primary_key}) OR #{updated_key} > '#{max_updated_key}'"
             end
-
-            
-
 
             sql = "SELECT #{destination_columns.join(',')} FROM #{source_name} #{where_statement} ORDER BY #{updated_key}, #{primary_key} ASC LIMIT #{import_row_limit}"
             logger.info sql
