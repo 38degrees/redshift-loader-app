@@ -1,0 +1,17 @@
+<h1>Table copies</h1>
+<table>
+    <tr>
+        <th>What happened?</th>
+        <th>Number of rows</th>
+        <th>Started at</th>
+        <th>Milliseconds</th>
+    </tr>
+    <% @table_copies.each do |table_copy| %>
+        <tr>
+            <td><%= table_copy.text %></td>
+            <td><%= table_copy.rows_copied %></td>
+            <td><%= table_copy.started_at %></td>
+            <td><%= ((table_copy.finished_at - table_copy.started_at) * 1000).round %></td>
+        </tr>
+    <% end %>
+</table>

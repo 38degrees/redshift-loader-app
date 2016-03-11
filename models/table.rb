@@ -33,6 +33,8 @@ class Table < ActiveRecord::Base
             raise "Aborting copy! Tables #{source_name}, #{destination_name} don't match."
         end
 
+        started_at = Time.now
+
         destination_columns = destination_connection.columns(destination_name).map{|col| "#{source_name}.#{col.name}" }
 
         if insert_only
@@ -44,7 +46,6 @@ class Table < ActiveRecord::Base
             end
 
             sql = "SELECT #{destination_columns.join(',')} FROM #{source_name} #{where_statement} ORDER BY #{primary_key} ASC LIMIT #{import_row_limit}"
-            logger.info sql
 
             result = source_connection.execute(sql)
 
@@ -77,13 +78,10 @@ class Table < ActiveRecord::Base
                 result = destination_connection.execute("SELECT MAX(#{primary_key}) AS max FROM #{destination_name} WHERE #{updated_key} = '#{max_updated_key}'")
                 max_primary_key = result.first['max']
                 "WHERE ( #{updated_key} >= '#{max_updated_key}' AND #{primary_key} > #{max_primary_key}) OR #{updated_key} > '#{max_updated_key}'"
-            end
-
-            
+            end    
 
 
             sql = "SELECT #{destination_columns.join(',')} FROM #{source_name} #{where_statement} ORDER BY #{updated_key}, #{primary_key} ASC LIMIT #{import_row_limit}"
-            logger.info sql
 
             result = source_connection.execute(sql)
 
@@ -118,14 +116,18 @@ class Table < ActiveRecord::Base
 
             end
         end
+
+        #Log for benchmarking
+        finished_at = Time.now
+        TableCopy.create(text: "Copied #{source_name} to #{destination_name} using #{sql}", rows_copied: result.count, started_at: started_at, finished_at: finished_at)
     end
 
     def import_row_limit
-        ENV['IMPORT_ROW_LIMIT'].to_i
+        ENV['IMPORT_ROW_LIMIT'] ? ENV['IMPORT_ROW_LIMIT'].to_i : 100000
     end
 
     def import_chunk_size
-        ENV['IMPORT_CHUNK_SIZE'].to_i
+        ENV['IMPORT_CHUNK_SIZE'] ? ENV['IMPORT_CHUNK_SIZE'].to_i : 10000
     end
 
     def s3
