@@ -51,7 +51,8 @@ class Table < ActiveRecord::Base
         if reset_updated_key
             update_attributes({
                 max_updated_key: reset_updated_key,
-                max_primary_key: 0
+                max_primary_key: 0,
+                reset_updated_key: nil
                 })
         end
 
