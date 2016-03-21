@@ -67,53 +67,52 @@ class Table < ActiveRecord::Base
         started_at = Time.now         
         self.check              
 
-        unless insert_only
+        result = self.new_rows
+        if result.count > 0
+            destination_connection.execute("CREATE TEMP TABLE stage (LIKE #{destination_name});")
 
-            result = self.new_rows
-            if result.count > 0
-                destination_connection.execute("CREATE TEMP TABLE stage (LIKE #{destination_name});")
-
-                result.each_slice(import_chunk_size) do |slice|
-                    csv_string = CSV.generate do |csv|
-                      slice.each do |row|
-                          csv << row.values
-                      end
-                    end
-
-                    filename = "#{source_name}_#{Time.now.to_i}.txt"
-                    text_file = bucket.objects.build(filename)
-                    text_file.content = csv_string
-                    text_file.save
-
-                    # Import the data to Redshift
-                    destination_connection.execute("COPY stage from 's3://#{bucket_name}/#{filename}' 
-                      credentials 'aws_access_key_id=#{ENV['AWS_ACCESS_KEY_ID']};aws_secret_access_key=#{ENV['AWS_SECRET_ACCESS_KEY']}' delimiter ',' CSV QUOTE AS '\"' ;")
-
-                    text_file.destroy
+            result.each_slice(import_chunk_size) do |slice|
+                csv_string = CSV.generate do |csv|
+                  slice.each do |row|
+                      csv << row.values
+                  end
                 end
 
-                destination_connection.transaction do
-                    destination_connection.execute("DELETE FROM #{destination_name} USING stage WHERE #{destination_name}.#{primary_key} = stage.#{primary_key}")
-                    destination_connection.execute("INSERT INTO #{destination_name} SELECT * FROM stage")
-                end
+                filename = "#{source_name}_#{Time.now.to_i}.txt"
+                text_file = bucket.objects.build(filename)
+                text_file.content = csv_string
+                text_file.save
 
-                #update max_updated_at and max_primary_key
-                x = destination_connection.execute("SELECT MAX(#{primary_key}) as max_primary_key, MAX(#{updated_key}) as max_updated_key
-                    FROM stage WHERE #{updated_key} = (SELECT MAX(#{updated_key}) FROM stage)").first
+                # Import the data to Redshift
+                destination_connection.execute("COPY stage from 's3://#{bucket_name}/#{filename}' 
+                  credentials 'aws_access_key_id=#{ENV['AWS_ACCESS_KEY_ID']};aws_secret_access_key=#{ENV['AWS_SECRET_ACCESS_KEY']}' delimiter ',' CSV QUOTE AS '\"' ;")
 
-                puts x['max_updated_key']
-                update_attributes({
-                    max_primary_key: x['max_primary_key'].to_i,
-                    max_updated_key: x['max_updated_key']
-                    })
-
-                destination_connection.execute("DROP TABLE stage;")
+                text_file.destroy
             end
+
+            destination_connection.transaction do
+                destination_connection.execute("DELETE FROM #{destination_name} USING stage WHERE #{destination_name}.#{primary_key} = stage.#{primary_key}")
+                destination_connection.execute("INSERT INTO #{destination_name} SELECT * FROM stage")
+            end
+
+            #update max_updated_at and max_primary_key
+            x = destination_connection.execute("SELECT MAX(#{primary_key}) as max_primary_key, MAX(#{updated_key}) as max_updated_key
+                FROM stage WHERE #{updated_key} = (SELECT MAX(#{updated_key}) FROM stage)").first
+
+            puts x['max_updated_key']
+            update_attributes({
+                max_primary_key: x['max_primary_key'].to_i,
+                max_updated_key: x['max_updated_key']
+                })
+
+            destination_connection.execute("DROP TABLE stage;")
         end
 
         #Log for benchmarking
         finished_at = Time.now
         self.table_copies << TableCopy.create(text: "Copied #{source_name} to #{destination_name}", rows_copied: result.count, started_at: started_at, finished_at: finished_at)
+
+            # Do it 
     end
 
     def import_row_limit
