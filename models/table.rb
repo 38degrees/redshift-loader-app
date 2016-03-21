@@ -71,25 +71,27 @@ class Table < ActiveRecord::Base
 
         else
             result = destination_connection.execute("SELECT MAX(#{updated_key}) AS max FROM #{destination_name}")
-            max_updated_key = result.first['max']
+            max_updated_key = result.first['max'].to_datetime
 
             #check number of rows matches by checking # of rows where created_at BETWEEN start_of_day AND max_updated_at
             today = Date.today
-            check_where_statement = if max_updated_key
-                "WHERE created_at BETWEEN '#{today.to_s}' AND '#{max_updated_key}'"
-            end
-            source_count = source_connection.execute("SELECT COUNT(*) as count FROM #{source_name} #{check_where_statement}").first['count'].to_i
-            destination_count = destination_connection.execute("SELECT COUNT(*) as count FROM #{destination_name} #{check_where_statement}").first['count'].to_i
+            if today < max_updated_key
+                check_where_statement = if max_updated_key
+                    "WHERE #{updated_key} BETWEEN '#{today.to_s}' AND '#{max_updated_key}'"
+                end
+                source_count = source_connection.execute("SELECT COUNT(*) as count FROM #{source_name} #{check_where_statement}").first['count'].to_i
+                destination_count = destination_connection.execute("SELECT COUNT(*) as count FROM #{destination_name} #{check_where_statement}").first['count'].to_i
+                puts source_count, destination_count
 
-            # if counts don't match then rewind the update to beginning of day
-            unless source_count == destination_count
-                max_updated_key = today
+                # if source count is greater than dest then something must have been inserted
+                if source_count > destination_count
+                    max_updated_key = today
+                end
             end
 
             where_statement = if max_updated_key 
                 result = destination_connection.execute("SELECT MAX(#{primary_key}) AS max FROM #{destination_name} WHERE #{updated_key} = '#{max_updated_key}'")
                 max_primary_key = result.first['max'] || 0
-                logger.info max_primary_key
                 "WHERE ( #{updated_key} >= '#{max_updated_key}' AND #{primary_key} > #{max_primary_key}) OR #{updated_key} > '#{max_updated_key}'"
             end    
 
