@@ -17,11 +17,11 @@ ActiveRecord::Schema.define(version: 5) do
   enable_extension "plpgsql"
 
   create_table "accounts", force: true do |t|
-    t.string   "name",             limit: nil
-    t.string   "surname",          limit: nil
-    t.string   "email",            limit: nil
-    t.string   "crypted_password", limit: nil
-    t.string   "role",             limit: nil
+    t.string   "name"
+    t.string   "surname"
+    t.string   "email"
+    t.string   "crypted_password"
+    t.string   "role"
     t.datetime "created_at"
     t.datetime "updated_at"
   end
@@ -63,7 +63,7 @@ ActiveRecord::Schema.define(version: 5) do
     t.datetime "updated_at"
   end
 
-  create_table "table_copy", force: true do |t|
+  create_table "table_copies", force: true do |t|
     t.text     "text"
     t.integer  "rows_copied"
     t.datetime "started_at"

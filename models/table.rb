@@ -71,17 +71,30 @@ class Table < ActiveRecord::Base
 
         else
             result = destination_connection.execute("SELECT MAX(#{updated_key}) AS max FROM #{destination_name}")
-
             max_updated_key = result.first['max']
+
+            #check number of rows matches by checking # of rows where created_at BETWEEN start_of_day AND max_updated_at
+            today = Date.today
+            check_where_statement = if max_updated_key
+                "WHERE created_at BETWEEN '#{today.to_s}' AND '#{max_updated_key}'"
+            end
+            source_count = source_connection.execute("SELECT COUNT(*) as count FROM #{source_name} #{check_where_statement}").first['count'].to_i
+            destination_count = destination_connection.execute("SELECT COUNT(*) as count FROM #{destination_name} #{check_where_statement}").first['count'].to_i
+
+            # if counts don't match then rewind the update to beginning of day
+            unless source_count == destination_count
+                max_updated_key = today
+            end
 
             where_statement = if max_updated_key 
                 result = destination_connection.execute("SELECT MAX(#{primary_key}) AS max FROM #{destination_name} WHERE #{updated_key} = '#{max_updated_key}'")
-                max_primary_key = result.first['max']
+                max_primary_key = result.first['max'] || 0
+                logger.info max_primary_key
                 "WHERE ( #{updated_key} >= '#{max_updated_key}' AND #{primary_key} > #{max_primary_key}) OR #{updated_key} > '#{max_updated_key}'"
             end    
 
 
-            sql = "SELECT #{destination_columns.join(',')} FROM #{source_name} #{where_statement} ORDER BY #{updated_key}, #{primary_key} ASC LIMIT #{import_row_limit}"
+            sql = "SELECT #{destination_columns.join(',')} FROM #{source_name} #{where_statement} ORDER BY #{updated_key}, #{primary_key} ASC LIMIT #{import_row_limit}"           
 
             result = source_connection.execute(sql)
 
