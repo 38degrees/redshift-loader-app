@@ -118,7 +118,10 @@ class Table < ActiveRecord::Base
         finished_at = Time.now
         self.table_copies << TableCopy.create(text: "Copied #{source_name} to #{destination_name}", rows_copied: result.count, started_at: started_at, finished_at: finished_at)
 
-            # Do it 
+        # Do it again if we hit up against the row limit
+        if result.count == import_row_limit
+            copy
+        end
     end
 
     def import_row_limit
