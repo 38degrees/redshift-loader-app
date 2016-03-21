@@ -1,6 +1,7 @@
 class Table < ActiveRecord::Base
     
     belongs_to :job
+    has_many :table_copies
 
     def self.admin_fields 
         {
@@ -9,7 +10,9 @@ class Table < ActiveRecord::Base
           :destination_name => :text,
           :primary_key => :text,
           :updated_key => :text,
-          :insert_only => :check_box
+          :insert_only => :check_box,
+          :max_updated_key => :text,
+          :max_primary_key => :text
         }
     end
 
@@ -25,81 +28,48 @@ class Table < ActiveRecord::Base
     def check
         source_columns = source_connection.columns(source_name).map{|col| col.name }
         destination_columns = destination_connection.columns(destination_name).map{|col| col.name }
-        source_columns.sort == destination_columns.sort
+        unless source_columns.sort == destination_columns.sort
+            raise "Aborting copy! Tables #{source_name}, #{destination_name} don't match."
+        end
+    end
+
+    def source_columns
+        destination_connection.columns(destination_name).map{|col| "#{source_name}.#{col.name}" }
+    end
+
+    def where_statement_for_source
+
+        unless max_updated_key
+            update_attribute(:max_updated_key, '1970-01-01')
+        end
+
+        unless max_primary_key
+            update_attribute(:max_primary_key, 0)
+        end
+
+        #use this to rewind and catch up some data
+        if reset_updated_key
+            update_attributes({
+                max_updated_key: reset_updated_key,
+                max_primary_key: 0
+                })
+        end
+
+        "WHERE ( #{updated_key} >= '#{max_updated_key.strftime('%Y-%m-%d %H:%M:%S.%N')}' AND #{primary_key} > #{max_primary_key}) OR #{updated_key} > '#{max_updated_key.strftime('%Y-%m-%d %H:%M:%S.%N')}'"
+    end
+
+    def new_rows
+            sql = "SELECT #{source_columns.join(',')} FROM #{source_name} #{where_statement_for_source} ORDER BY #{updated_key}, #{primary_key} ASC LIMIT #{import_row_limit}" 
+            source_connection.execute(sql)
     end
 
     def copy
-        unless check
-            raise "Aborting copy! Tables #{source_name}, #{destination_name} don't match."
-        end
+        started_at = Time.now         
+        self.check              
 
-        started_at = Time.now
+        unless insert_only
 
-        destination_columns = destination_connection.columns(destination_name).map{|col| "#{source_name}.#{col.name}" }
-
-        if insert_only
-            result = destination_connection.execute("SELECT MAX(#{primary_key}) AS max FROM #{destination_name}")
-
-            # assumes primary_key is a number
-            where_statement = if result.first['max']
-                "WHERE #{primary_key} > #{result.first['max']}"
-            end
-
-            sql = "SELECT #{destination_columns.join(',')} FROM #{source_name} #{where_statement} ORDER BY #{primary_key} ASC LIMIT #{import_row_limit}"
-
-            result = source_connection.execute(sql)
-
-            result.each_slice(import_chunk_size) do |slice|
-                csv_string = CSV.generate do |csv|
-                    slice.each do |row|
-                        csv << row.values
-                    end
-                end 
-
-                filename = "#{source_name}_#{Time.now.to_i}.txt"
-                text_file = bucket.objects.build(filename)
-                text_file.content = csv_string
-                text_file.save
-
-                # Import the data to Redshift
-                
-                destination_connection.execute("copy #{destination_name} from 's3://#{bucket_name}/#{filename}' 
-                    credentials 'aws_access_key_id=#{ENV['AWS_ACCESS_KEY_ID']};aws_secret_access_key=#{ENV['AWS_SECRET_ACCESS_KEY']}' delimiter ',' CSV QUOTE AS '\"' ;")
-
-                text_file.destroy
-            end
-
-        else
-            result = destination_connection.execute("SELECT MAX(#{updated_key}) AS max FROM #{destination_name}")
-            max_updated_key = result.first['max'].to_datetime
-
-            #check number of rows matches by checking # of rows where created_at BETWEEN start_of_day AND max_updated_at
-            today = Date.today
-            if today < max_updated_key
-                check_where_statement = if max_updated_key
-                    "WHERE #{updated_key} BETWEEN '#{today.to_s}' AND '#{max_updated_key}'"
-                end
-                source_count = source_connection.execute("SELECT COUNT(*) as count FROM #{source_name} #{check_where_statement}").first['count'].to_i
-                destination_count = destination_connection.execute("SELECT COUNT(*) as count FROM #{destination_name} #{check_where_statement}").first['count'].to_i
-                puts source_count, destination_count
-
-                # if source count is greater than dest then something must have been inserted
-                if source_count > destination_count
-                    max_updated_key = today
-                end
-            end
-
-            where_statement = if max_updated_key 
-                result = destination_connection.execute("SELECT MAX(#{primary_key}) AS max FROM #{destination_name} WHERE #{updated_key} = '#{max_updated_key}'")
-                max_primary_key = result.first['max'] || 0
-                "WHERE ( #{updated_key} >= '#{max_updated_key}' AND #{primary_key} > #{max_primary_key}) OR #{updated_key} > '#{max_updated_key}'"
-            end    
-
-
-            sql = "SELECT #{destination_columns.join(',')} FROM #{source_name} #{where_statement} ORDER BY #{updated_key}, #{primary_key} ASC LIMIT #{import_row_limit}"           
-
-            result = source_connection.execute(sql)
-
+            result = self.new_rows
             if result.count > 0
                 destination_connection.execute("CREATE TEMP TABLE stage (LIKE #{destination_name});")
 
@@ -127,14 +97,23 @@ class Table < ActiveRecord::Base
                     destination_connection.execute("INSERT INTO #{destination_name} SELECT * FROM stage")
                 end
 
-                destination_connection.execute("DROP TABLE stage;")
+                #update max_updated_at and max_primary_key
+                x = destination_connection.execute("SELECT MAX(#{primary_key}) as max_primary_key, MAX(#{updated_key}) as max_updated_key
+                    FROM stage WHERE #{updated_key} = (SELECT MAX(#{updated_key}) FROM stage)").first
 
+                puts x['max_updated_key']
+                update_attributes({
+                    max_primary_key: x['max_primary_key'].to_i,
+                    max_updated_key: x['max_updated_key']
+                    })
+
+                destination_connection.execute("DROP TABLE stage;")
             end
         end
 
         #Log for benchmarking
         finished_at = Time.now
-        TableCopy.create(text: "Copied #{source_name} to #{destination_name} using #{sql}", rows_copied: result.count, started_at: started_at, finished_at: finished_at)
+        self.table_copies << TableCopy.create(text: "Copied #{source_name} to #{destination_name}", rows_copied: result.count, started_at: started_at, finished_at: finished_at)
     end
 
     def import_row_limit
