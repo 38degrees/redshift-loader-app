@@ -55,7 +55,11 @@ class Table < ActiveRecord::Base
                 })
         end
 
-        "WHERE ( #{updated_key} >= '#{max_updated_key.strftime('%Y-%m-%d %H:%M:%S.%N')}' AND #{primary_key} > #{max_primary_key}) OR #{updated_key} > '#{max_updated_key.strftime('%Y-%m-%d %H:%M:%S.%N')}'"
+        if insert_only
+            "WHERE #{primary_key} > #{max_primary_key}"
+        else
+            "WHERE ( #{updated_key} >= '#{max_updated_key.strftime('%Y-%m-%d %H:%M:%S.%N')}' AND #{primary_key} > #{max_primary_key}) OR #{updated_key} > '#{max_updated_key.strftime('%Y-%m-%d %H:%M:%S.%N')}'"
+        end
     end
 
     def new_rows
@@ -91,7 +95,9 @@ class Table < ActiveRecord::Base
             end
 
             destination_connection.transaction do
-                destination_connection.execute("DELETE FROM #{destination_name} USING stage WHERE #{destination_name}.#{primary_key} = stage.#{primary_key}")
+                unless insert_only
+                    destination_connection.execute("DELETE FROM #{destination_name} USING stage WHERE #{destination_name}.#{primary_key} = stage.#{primary_key}")
+                end
                 destination_connection.execute("INSERT INTO #{destination_name} SELECT * FROM stage")
             end
 
