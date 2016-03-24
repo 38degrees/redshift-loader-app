@@ -11,7 +11,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 6) do
+ActiveRecord::Schema.define(version: 7) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -70,6 +70,7 @@ ActiveRecord::Schema.define(version: 6) do
     t.datetime "finished_at"
     t.datetime "created_at"
     t.datetime "updated_at"
+    t.integer  "table_id"
   end
 
   create_table "tables", force: true do |t|
@@ -82,7 +83,10 @@ ActiveRecord::Schema.define(version: 6) do
     t.datetime "created_at"
     t.datetime "updated_at"
     t.datetime "last_copied_at"
-    t.datetime "max_updated_at_key"
+    t.datetime "max_updated_key"
+    t.integer  "max_primary_key"
+    t.datetime "reset_updated_key"
+    t.datetime "time_travel_scan_back_period"
   end
 
 end
