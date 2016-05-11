@@ -29,8 +29,10 @@ class Table < ActiveRecord::Base
         source_columns = source_connection.columns(source_name).map{|col| col.name }
         destination_columns = destination_connection.columns(destination_name).map{|col| col.name }
         unless source_columns.sort == destination_columns.sort
-            raise "Aborting copy! Tables #{source_name}, #{destination_name} don't match."
+            logger.warn "Aborting copy! Tables #{source_name}, #{destination_name} don't match."
+            return false
         end
+        true
     end
 
     def source_columns
@@ -88,14 +90,21 @@ class Table < ActiveRecord::Base
 
     def copy
         started_at = Time.now         
-        self.check
+        unless self.check
+            return
+        end
         self.check_for_time_travelling_data  
 
+        logger.info "Getting new rows for table #{source_name}"
         result = self.new_rows
+        logger.info "Retrieved #{result.count} rows"
+
         if result.count > 0
+            logger.info "Loading data to Redshift"
             destination_connection.execute("CREATE TEMP TABLE stage (LIKE #{destination_name});")
 
             result.each_slice(import_chunk_size) do |slice|
+                logger.info "Copying data to S3"
                 csv_string = CSV.generate do |csv|
                   slice.each do |row|
                       csv << row.values
@@ -107,6 +116,7 @@ class Table < ActiveRecord::Base
                 text_file.content = csv_string
                 text_file.save
 
+                logger.info "Copying data from S3 to Redshift"
                 # Import the data to Redshift
                 destination_connection.execute("COPY stage from 's3://#{bucket_name}/#{filename}' 
                   credentials 'aws_access_key_id=#{ENV['AWS_ACCESS_KEY_ID']};aws_secret_access_key=#{ENV['AWS_SECRET_ACCESS_KEY']}' delimiter ',' CSV QUOTE AS '\"' ;")
@@ -114,6 +124,7 @@ class Table < ActiveRecord::Base
                 text_file.destroy
             end
 
+            logger.info "Merging data into main table #{destination_name}"
             destination_connection.transaction do
                 unless insert_only
                     destination_connection.execute("DELETE FROM #{destination_name} USING stage WHERE #{destination_name}.#{primary_key} = stage.#{primary_key}")
@@ -125,7 +136,7 @@ class Table < ActiveRecord::Base
             x = destination_connection.execute("SELECT MAX(#{primary_key}) as max_primary_key, MAX(#{updated_key}) as max_updated_key
                 FROM stage WHERE #{updated_key} = (SELECT MAX(#{updated_key}) FROM stage)").first
 
-            puts x['max_updated_key']
+            logger.info "Max updated_key is now #{x['max_updated_key']}"
             update_attributes({
                 max_primary_key: x['max_primary_key'].to_i,
                 max_updated_key: x['max_updated_key']
@@ -136,6 +147,7 @@ class Table < ActiveRecord::Base
 
         #Log for benchmarking
         finished_at = Time.now
+        logger.info "Total time #{finished_at - started_at} seconds"
         self.table_copies << TableCopy.create(text: "Copied #{source_name} to #{destination_name}", rows_copied: result.count, started_at: started_at, finished_at: finished_at)
 
         # Do it again if we hit up against the row limit

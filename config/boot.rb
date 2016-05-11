@@ -6,6 +6,11 @@ PADRINO_ROOT = File.expand_path('../..', __FILE__) unless defined?(PADRINO_ROOT)
 require 'bundler/setup'
 Bundler.require(:default, RACK_ENV)
 
+# Make sure logs aren't buffered
+Padrino::Logger::Config[:production][:log_level] = :info
+Padrino::Logger::Config[:production][:auto_flush] = :true
+Padrino::Logger::Config[:production][:stream] = :stdout
+
 ##
 # Add your before (RE)load hooks here
 #
