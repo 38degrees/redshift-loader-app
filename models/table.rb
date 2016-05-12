@@ -104,7 +104,7 @@ class Table < ActiveRecord::Base
             destination_connection.execute("CREATE TEMP TABLE stage (LIKE #{destination_name});")
 
             result.each_slice(import_chunk_size) do |slice|
-                logger.info "Copying data to S3"
+                logger.info " - Copying data to S3"
                 csv_string = CSV.generate do |csv|
                   slice.each do |row|
                       csv << row.values
@@ -116,11 +116,12 @@ class Table < ActiveRecord::Base
                 text_file.content = csv_string
                 text_file.save
 
-                logger.info "Copying data from S3 to Redshift"
+                logger.info " - Copying data from S3 to Redshift"
                 # Import the data to Redshift
                 destination_connection.execute("COPY stage from 's3://#{bucket_name}/#{filename}' 
                   credentials 'aws_access_key_id=#{ENV['AWS_ACCESS_KEY_ID']};aws_secret_access_key=#{ENV['AWS_SECRET_ACCESS_KEY']}' delimiter ',' CSV QUOTE AS '\"' ;")
 
+                logger.info " - Deleting data from S3"
                 text_file.destroy
             end
 
