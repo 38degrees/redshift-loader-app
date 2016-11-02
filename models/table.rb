@@ -39,6 +39,24 @@ class Table < ActiveRecord::Base
         destination_connection.columns(destination_name).map{|col| "#{source_name}.#{col.name}" }
     end
 
+    def apply_resets
+        #use this to rewind and catch up some data
+        if reset_updated_key
+            update_attributes({
+                max_updated_key: reset_updated_key,
+                max_primary_key: 0,
+                reset_updated_key: nil
+                })
+        end
+
+        if delete_on_reset
+            sql = "DELETE FROM #{source_name} #{where_statement_for_source}"
+            logger.info "Deleting data from #{source_name}: #{sql}"
+            source_connection.execute(sql)
+            update_attribute(:delete_on_reset, nil)
+        end
+    end
+
     def where_statement_for_source
 
         unless max_updated_key
@@ -49,15 +67,6 @@ class Table < ActiveRecord::Base
             update_attribute(:max_primary_key, 0)
         end
 
-        #use this to rewind and catch up some data
-        if reset_updated_key
-            update_attributes({
-                max_updated_key: reset_updated_key,
-                max_primary_key: 0,
-                reset_updated_key: nil
-                })
-        end
-
         if insert_only
             "WHERE #{primary_key} > #{max_primary_key}"
         else
@@ -66,15 +75,13 @@ class Table < ActiveRecord::Base
     end
 
     def new_rows
-            sql = "SELECT #{source_columns.join(',')} FROM #{source_name} #{where_statement_for_source} ORDER BY #{updated_key}, #{primary_key} ASC LIMIT #{import_row_limit}" 
-            source_connection.execute(sql)
+        sql = "SELECT #{source_columns.join(',')} FROM #{source_name} #{where_statement_for_source} ORDER BY #{updated_key}, #{primary_key} ASC LIMIT #{import_row_limit}" 
+        source_connection.execute(sql)
     end
-
 
     def check_for_time_travelling_data
 
         # If data with an older 'updated_at' is inserted into a table after newer data has been loaded it will not be picked up. We can check to see if this has happened (heuristically) by looking at the count of data before the current max_updated_key in both databases. If everything is normal then count of destination.updated_key will be >= count of source.updated_key. Therefore if count destination.updated_key < count source.updated_key we assume that data has time travelled and rewind the max_updated_key
-
         if time_travel_scan_back_period
             sql = "SELECT COUNT(*) as count FROM #{destination_name} WHERE #{updated_key} >= '#{max_updated_key - time_travel_scan_back_period}' AND #{updated_key} < '#{max_updated_key}'"
             destination_count = destination_connection.execute(sql).first['count'].to_i
@@ -93,7 +100,8 @@ class Table < ActiveRecord::Base
         unless self.check
             return
         end
-        self.check_for_time_travelling_data  
+        self.check_for_time_travelling_data
+        self.apply_resets  
 
         logger.info "Getting new rows for table #{source_name}"
         result = self.new_rows

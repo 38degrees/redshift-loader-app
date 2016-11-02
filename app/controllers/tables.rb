@@ -11,8 +11,10 @@ RedshiftLoaderApp::App.controller do
 
   post '/tables/:id/reset' do
     datetime = DateTime.parse(params[:datetime])
+    delete_on_reset = !!params[:delete_on_reset]
     table = Table.find(params[:id])
     table.update_attribute(:reset_updated_key, datetime)
+    table.update_attribute(:delete_on_reset, delete_on_reset)
     redirect back
   end
 end
