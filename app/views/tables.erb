@@ -4,7 +4,6 @@
     <div class="panel panel-default">
       <div class="panel-heading">
         <h4 class="panel-title">
-          <a data-toggle="collapse" data-parent="#accordion" href="#collapse<%= index %>">
           <%= table.source_name %></a>
           <div class="pull-right">
             <span><strong>Last copy</strong>: <%= time_ago_in_words(table.updated_at) %> ago</span>
@@ -12,7 +11,7 @@
           </div>
         </h4>
       </div>
-      <div id="collapse<%= index %>" class="panel-collapse collapse">
+      <div>
         <% unless table.insert_only %>
           <% form_tag "/tables/#{table.id}/reset", class: "form-inline" do %>
             <%= label_tag "Rewind to" %>
@@ -22,20 +21,6 @@
             <button type="submit" class="btn btn-primary">Reset</button>
           <% end %>
         <% end %>
-        <table class="table">
-            <tr>
-              <th># Rows</th>
-              <th>Start time</th>
-              <th>Time taken</th>
-            </tr>
-            <% table.table_copies.where("rows_copied > 0").order("updated_at DESC").limit(10).each do |table_copy| %>
-                <tr>
-                    <td><%= table_copy.rows_copied %></td>
-                    <td><%= table_copy.started_at %></td>
-                    <td><%= ((table_copy.finished_at - table_copy.started_at) * 1000).round %>ms</td>
-                </tr>
-            <% end %>
-        </table>
       </div>
     </div>
   </div>
