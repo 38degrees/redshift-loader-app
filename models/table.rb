@@ -50,9 +50,9 @@ class Table < ActiveRecord::Base
         end
 
         if delete_on_reset
-            sql = "DELETE FROM #{source_name} #{where_statement_for_source}"
-            logger.info "Deleting data from #{source_name}: #{sql}"
-            source_connection.execute(sql)
+            sql = "DELETE FROM #{destination_name} #{where_statement_for_source}"
+            logger.info "Deleting data from #{destination_name}: #{sql}"
+            destination_connection.execute(sql)
             update_attribute(:delete_on_reset, nil)
         end
     end
