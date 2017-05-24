@@ -19,6 +19,19 @@ class Job < ActiveRecord::Base
         end
     end
 
+    def reset(confirmation)
+      return "Confirmation failed" unless confirmation == self.name
+      setup_connection
+      self.tables.each do |table|
+        puts "Resetting #{table.destination_name}"
+        destination_connection.execute("TRUNCATE #{table.destination_name}")
+        table.update_attributes({
+          max_primary_key: 0,
+          max_updated_key: '1970-01-01 00:00:00'
+          })
+      end
+    end
+
     def exclude_table_names
       ["schema_migrations"]
     end
