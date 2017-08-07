@@ -10,9 +10,9 @@ gem 'delayed_job_active_record', '4.0.1'
 gem 'newrelic_rpm' #app monitoring 
 
 # Admin
-gem 'will_paginate', github: 'mislav/will_paginate'
-gem 'activate-admin', github: 'wordsandwriting/activate-admin'
-gem 'activate-tools', github: 'wordsandwriting/activate-tools'
+gem 'will_paginate', git: 'https://github.com/mislav/will_paginate'
+gem 'activate-admin', git: 'https://github.com/wordsandwriting/activate-admin'
+gem 'activate-tools', git: 'https://github.com/wordsandwriting/activate-tools'
 
 # Component requirements
 gem 'bcrypt'

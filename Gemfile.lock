@@ -1,12 +1,12 @@
 GIT
-  remote: git://github.com/mislav/will_paginate.git
-  revision: 74a6cd0197072903cd8b83744133744ff4b4c046
+  remote: https://github.com/mislav/will_paginate
+  revision: 0b93300d43f658bb15071f59486c92af06aca064
   specs:
-    will_paginate (3.0.4)
+    will_paginate (3.1.6)
 
 GIT
-  remote: git://github.com/wordsandwriting/activate-admin.git
-  revision: 5d39e58762b621246c9417c29007f3cd8e06833f
+  remote: https://github.com/wordsandwriting/activate-admin
+  revision: eaf15be315b68f77e3755000b92f5dc1fc0225ba
   specs:
     activate-admin (0.0.1)
       activate-tools
@@ -14,8 +14,8 @@ GIT
       will_paginate
 
 GIT
-  remote: git://github.com/wordsandwriting/activate-tools.git
-  revision: c5612838b134c35bcacee51877636144b8d2f7f1
+  remote: https://github.com/wordsandwriting/activate-tools
+  revision: eb6e687165dbf0f43c4c63c439970b1b1fea7f05
   specs:
     activate-tools (0.0.1)
       padrino
@@ -143,3 +143,6 @@ DEPENDENCIES
   s3
   unicorn
   will_paginate!
+
+BUNDLED WITH
+   1.15.3
