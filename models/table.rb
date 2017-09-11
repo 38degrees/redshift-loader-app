@@ -1,4 +1,6 @@
 class Table < ActiveRecord::Base
+    MIN_UPDATED_KEY = '1970-01-01'
+    MIN_PRIMARY_KEY = 0
     
     belongs_to :job
     has_many :table_copies
@@ -10,10 +12,35 @@ class Table < ActiveRecord::Base
           :destination_name => :text,
           :primary_key => :text,
           :updated_key => :text,
-          :insert_only => :check_box,
+          :insert_only => :check_box,   #TODO: insert_only effectively becomes deprecated once copy_mode is proven, so come back and delete it
+          :copy_mode => :text,
           :max_updated_key => :text,
           :max_primary_key => :text
         }
+    end
+    
+    def insert_only_mode?
+      if copy_mode.present?
+        return copy_mode == 'INSERT_ONLY'
+      else
+        return insert_only
+      end
+    end
+    
+    def insert_and_update_mode?
+      if copy_mode.present?
+        copy_mode == 'INSERT_AND_UPDATE'
+      else
+        return !insert_only
+      end
+    end
+    
+    def full_data_sync_mode?
+      if copy_mode.present?
+        return copy_mode == 'FULL_DATA_SYNC'
+      else
+        return false
+      end
     end
 
     def source_connection
@@ -40,16 +67,18 @@ class Table < ActiveRecord::Base
     end
 
     def apply_resets
-        #use this to rewind and catch up some data
-        if reset_updated_key
+        #use this when doing a full data sync, or to rewind and catch up some data
+        if full_data_sync_mode? || reset_updated_key
+            rewind_time = (full_data_sync_mode? ? MIN_UPDATED_KEY : reset_updated_key)
+            logger.info "Rewinding data sync on #{source_name} to #{rewind_time}"
             update_attributes({
-                max_updated_key: reset_updated_key,
-                max_primary_key: 0,
+                max_updated_key: rewind_time,
+                max_primary_key: MIN_PRIMARY_KEY,
                 reset_updated_key: nil
                 })
         end
 
-        if delete_on_reset
+        if full_data_sync_mode? || delete_on_reset
             sql = "DELETE FROM #{destination_name} #{where_statement_for_source}"
             logger.info "Deleting data from #{destination_name}: #{sql}"
             destination_connection.execute(sql)
@@ -58,16 +87,15 @@ class Table < ActiveRecord::Base
     end
 
     def where_statement_for_source
-
         unless max_updated_key
-            update_attribute(:max_updated_key, '1970-01-01')
+            update_attribute(:max_updated_key, MIN_UPDATED_KEY)
         end
 
         unless max_primary_key
-            update_attribute(:max_primary_key, 0)
+            update_attribute(:max_primary_key, MIN_PRIMARY_KEY)
         end
 
-        if insert_only
+        if insert_only_mode?
             "WHERE #{primary_key} > #{max_primary_key}"
         else
             "WHERE ( #{updated_key} >= '#{max_updated_key.strftime('%Y-%m-%d %H:%M:%S.%N')}' AND #{primary_key} > #{max_primary_key}) OR #{updated_key} > '#{max_updated_key.strftime('%Y-%m-%d %H:%M:%S.%N')}'"
@@ -80,8 +108,11 @@ class Table < ActiveRecord::Base
     end
 
     def check_for_time_travelling_data
-
-        # If data with an older 'updated_at' is inserted into a table after newer data has been loaded it will not be picked up. We can check to see if this has happened (heuristically) by looking at the count of data before the current max_updated_key in both databases. If everything is normal then count of destination.updated_key will be >= count of source.updated_key. Therefore if count destination.updated_key < count source.updated_key we assume that data has time travelled and rewind the max_updated_key
+        # If data with an older 'updated_at' is inserted into a table after newer data has been loaded it will not be picked up.
+        # We can check to see if this has happened (heuristically) by looking at the count of data before the current
+        # max_updated_key in both databases. If everything is normal then count of destination.updated_key will be >= count of
+        # source.updated_key. Therefore if count destination.updated_key < count source.updated_key we assume that data has time
+        # travelled and rewind the max_updated_key
         if time_travel_scan_back_period
             sql = "SELECT COUNT(*) as count FROM #{destination_name} WHERE #{updated_key} >= '#{max_updated_key - time_travel_scan_back_period}' AND #{updated_key} < '#{max_updated_key}'"
             destination_count = destination_connection.execute(sql).first['count'].to_i
@@ -100,8 +131,11 @@ class Table < ActiveRecord::Base
         unless self.check
             return
         end
+        
+        logger.info "About to copy data for table #{source_name} - insert_only flag is set to [#{insert_only}] - copy_mode is set to [#{copy_mode}]"
+        
         self.check_for_time_travelling_data
-        self.apply_resets  
+        self.apply_resets
 
         logger.info "Getting new rows for table #{source_name}"
         result = self.new_rows
@@ -135,7 +169,7 @@ class Table < ActiveRecord::Base
 
             logger.info "Merging data into main table #{destination_name}"
             destination_connection.transaction do
-                unless insert_only
+                unless insert_only_mode?
                     destination_connection.execute("DELETE FROM #{destination_name} USING stage WHERE #{destination_name}.#{primary_key} = stage.#{primary_key}")
                 end
                 destination_connection.execute("INSERT INTO #{destination_name} SELECT * FROM stage")
@@ -156,7 +190,7 @@ class Table < ActiveRecord::Base
 
         #Log for benchmarking
         finished_at = Time.now
-        logger.info "Total time #{finished_at - started_at} seconds"
+        logger.info "Total time taken to copy table #{source_name} to #{destination_name} was #{finished_at - started_at} seconds"
         self.table_copies << TableCopy.create(text: "Copied #{source_name} to #{destination_name}", rows_copied: result.count, started_at: started_at, finished_at: finished_at)
 
         # Do it again if we hit up against the row limit
@@ -185,5 +219,5 @@ class Table < ActiveRecord::Base
     def bucket
         s3.buckets.find(bucket_name)
     end
-
+    
 end
