@@ -22,10 +22,10 @@ class ClockworkEvent < ActiveRecord::Base
     def if?(time)
         time_since_last_success = (time - last_succeeded_at.to_datetime)
         if  time_since_last_success >= frequency.to_i.seconds
-            logger.debug "It has been #{time_since_last_success} since the last success, with frequency of #{frequency} seconds, triggering job"
+            logger.debug "It's been #{time_since_last_success} since last success of #{self.id} - #{self.name}, frequency is #{frequency} s, triggering job"
             return true
         else
-            logger.debug "It has been #{time_since_last_success} since the last success, with frequency of #{frequency} seconds, NOT triggering job"
+            logger.debug "It's been #{time_since_last_success} since last success of #{self.id} - #{self.name}, frequency is #{frequency} s, NOT triggering job"
             return false
         end
     end
