@@ -1,0 +1,9 @@
+DATABASE_URL=postgres://loader:mypassword@localhost:5432/loader_dev?schema_search_path=loader
+
+SYNC_DB_EVENTS_FREQUENCY_MINS=5
+
+LANG=en_US.UTF-8
+
+NEWRELIC_AGENT_ENABLED=false
+
+PORT=3000

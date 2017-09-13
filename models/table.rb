@@ -14,6 +14,7 @@ class Table < ActiveRecord::Base
           :updated_key => :text,
           :insert_only => :check_box,   #TODO: insert_only effectively becomes deprecated once copy_mode is proven, so come back and delete it
           :copy_mode => :text,
+          :disabled => :check_box,
           :max_updated_key => :text,
           :max_primary_key => :text
         }
@@ -56,7 +57,15 @@ class Table < ActiveRecord::Base
         source_columns = source_connection.columns(source_name).map{|col| col.name }
         destination_columns = destination_connection.columns(destination_name).map{|col| col.name }
         unless source_columns.sort == destination_columns.sort
-            logger.warn "Aborting copy! Tables #{source_name}, #{destination_name} don't match."
+            logger.warn "Aborting copy! Tables #{source_name}, #{destination_name} don't match. (job #{job_id})"
+            return false
+        end
+        true
+    end
+    
+    def enabled?
+        if disabled
+            logger.info "Aborting copy. Table #{source_name} is disabled. (job #{job_id})"
             return false
         end
         true
@@ -128,9 +137,7 @@ class Table < ActiveRecord::Base
 
     def copy
         started_at = Time.now         
-        unless self.check
-            return
-        end
+        return unless (self.check && self.enabled?)
         
         logger.info "About to copy data for table #{source_name} - insert_only flag is set to [#{insert_only}] - copy_mode is set to [#{copy_mode}]"
         

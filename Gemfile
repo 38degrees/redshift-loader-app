@@ -4,7 +4,7 @@ source 'https://rubygems.org'
 gem 'rake'
 gem 'unicorn'
 gem 's3' #AWS buckets
-gem 'clockwork' #clock process
+gem 'clockwork', '~> 2.0' #clock process
 gem 'delayed_job', '4.0.2' #job scheduling
 gem 'delayed_job_active_record', '4.0.1'
 gem 'newrelic_rpm' #app monitoring 
@@ -25,5 +25,3 @@ gem 'activerecord4-redshift-adapter'
 
 # Padrino Stable Gem
 gem 'padrino', '0.13.0'
-
-

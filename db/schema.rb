@@ -11,7 +11,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 9) do
+ActiveRecord::Schema.define(version: 10) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -89,6 +89,7 @@ ActiveRecord::Schema.define(version: 9) do
     t.integer  "time_travel_scan_back_period"
     t.boolean  "delete_on_reset"
     t.text     "copy_mode"
+    t.boolean  "disabled"
   end
 
 end

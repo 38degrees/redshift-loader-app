@@ -42,7 +42,7 @@ GEM
     arel (5.0.1.20140414130214)
     bcrypt (3.1.10)
     builder (3.2.2)
-    clockwork (1.2.0)
+    clockwork (2.0.2)
       activesupport
       tzinfo
     delayed_job (4.0.2)
@@ -135,7 +135,7 @@ DEPENDENCIES
   activerecord (>= 3.1)
   activerecord4-redshift-adapter
   bcrypt
-  clockwork
+  clockwork (~> 2.0)
   delayed_job (= 4.0.2)
   delayed_job_active_record (= 4.0.1)
   foreman
@@ -148,4 +148,4 @@ DEPENDENCIES
   will_paginate!
 
 BUNDLED WITH
-   1.15.3
+   1.15.4
