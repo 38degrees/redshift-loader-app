@@ -37,10 +37,6 @@ to be inserted into the DB. If you just want a single time, you can just set the
 between midday & 1pm). If you want to use multiple times, use a comma separated list, eg `'09:**,10:**,11:**'` will run the job
 between 9am and midday.
 
-# Temporarily disabling table copies
-You can temporarily disable a specific table copy by updating `table.disabled` to `true`. This column should be visible on
-ActivateAdmin.
-
 ## Important notes on frequency of jobs!
 While the [Clockwork README](https://github.com/Rykian/clockwork) implies that the frequency of jobs running isn't affected by
 reloading `ClockworkDatabaseEvent`s, *this is not actually true based on experimentation*!
@@ -55,3 +51,7 @@ A secondary workaround has been put in place, which is implementing the `if?` me
 implementation of a `ClockworkDatabaseEvent`). The `if?` method is checked by clockwork to check if a job should run, and
 our implementation double-checks that the difference between the current time and the last time the job succeeded is greater
 than or equal to the frequency for the job.
+
+# Temporarily disabling table copies
+You can temporarily disable a specific table copy by updating `table.disabled` to `true`. This column should be visible on
+ActivateAdmin.
