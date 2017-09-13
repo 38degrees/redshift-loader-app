@@ -22,20 +22,19 @@ The app uses Clockwork (https://github.com/tomykaira/clockwork) in order to regu
 This is a new column which is designed to replace `insert_only` (which should become deprecated, and ultimately be deleted)
 
 Available modes:
-`INSERT_ONLY` = only copy new rows, don't update existing rows
-`INSERT_AND_UPDATE` = copy new rows, and update rows which have changed
-`FULL_DATA_SYNC` = full truncate / insert every time the job runs (_Should only be used for overnight jobs, as this will likely mess up ID searches if done while the system is in use!_)
+- `INSERT_ONLY` = only copy new rows, don't update existing rows
+- `INSERT_AND_UPDATE` = copy new rows, and update rows which have changed
+- `FULL_DATA_SYNC` = full truncate / insert every time the job runs (_Should only be used for overnight jobs, as this will likely mess up ID searches if done while the system is in use!_)
 
 # Scheduling jobs
 The `ClockworkEvent` in the database controls the frequency / schedule of a job running. There are two important columns for this,
 `frequency` and `at`.
 
-`frequency` controls how often a job should run, in seconds.
-
-`at` controls the times at which a job should run - for example, only between 12:00 and 13:00. More information about how `at`
+- `frequency` controls how often a job should run, in seconds.
+- `at` controls the times at which a job should run - for example, only between 12:00 and 13:00. More information about how `at`
 works can be found [here](https://github.com/Rykian/clockwork#at), although the docs are not that useful for what exactly needs
-to be inserted into the DB. If you just want a single time, you can just set the column to that value (eg. '12:**' for all times
-between midday & 1pm). If you want to use multiple times, use a comma separated list, eg '09:**,10:**,11:**' will run the job
+to be inserted into the DB. If you just want a single time, you can just set the column to that value (eg. `'12:**'` for all times
+between midday & 1pm). If you want to use multiple times, use a comma separated list, eg `'09:**,10:**,11:**'` will run the job
 between 9am and midday.
 
 # Temporarily disabling table copies
