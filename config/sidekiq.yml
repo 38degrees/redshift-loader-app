@@ -1,0 +1,4 @@
+:concurrency: <%= ENV['SIDEKIQ_WORKERS'] ? ENV['SIDEKIQ_WORKERS'].to_i : 2 %>
+:queues:
+  - default
+:dynamic: true

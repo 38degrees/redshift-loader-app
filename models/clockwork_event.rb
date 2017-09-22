@@ -34,16 +34,12 @@ class ClockworkEvent < ActiveRecord::Base
 
     def schedule
       if running && (DateTime.now - last_run_at.to_datetime) * 1.day > 61.seconds
-          update_attribute(:running, false)
-          logger.info "ClockworkEvent '#{name}' stuck in running state - resetting..."
+        update_attribute(:running, false)
+        logger.info "ClockworkEvent '#{name}' stuck in running state - resetting..."
       end
 
       if !running
-          if queue
-              self.delay(:queue => job.queue).perform
-          else
-              self.delay.perform
-          end
+        ClockworkEventWorker.perform_async(self.id)
       end
     end
 

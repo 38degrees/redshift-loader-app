@@ -5,8 +5,9 @@ gem 'rake'
 gem 'unicorn'
 gem 's3' #AWS buckets
 gem 'clockwork', '~> 2.0' #clock process
-gem 'delayed_job', '4.0.2' #job scheduling
-gem 'delayed_job_active_record', '4.0.1'
+gem 'sidekiq', '~> 5.0.4'
+gem 'sidekiq-limit_fetch'
+gem 'sidekiq-unique-jobs', '~> 5.0.10'
 gem 'newrelic_rpm' #app monitoring 
 gem 'foreman'
 
