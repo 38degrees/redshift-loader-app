@@ -177,8 +177,10 @@ class Table < ActiveRecord::Base
             logger.info "Merging #{source_name} data into main table #{destination_name}"
             destination_connection.transaction do
                 unless insert_only_mode?
+                    logger.debug "Deleting rows which have been updated from #{destination_name} because table is not in insert only mode"
                     destination_connection.execute("DELETE FROM #{destination_name} USING stage WHERE #{destination_name}.#{primary_key} = stage.#{primary_key}")
                 end
+                logger.debug "Inserting rows into #{destination_name}"
                 destination_connection.execute("INSERT INTO #{destination_name} SELECT * FROM stage")
             end
 
