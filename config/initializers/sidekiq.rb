@@ -7,4 +7,4 @@ Sidekiq.configure_server do |config|
   end
 end
 
-Sidekiq::Logging.logger.level = Logger.const_get((ENV['LOG_LEVEL'] || 'info').to_sym)
+Sidekiq::Logging.logger.level = Logger.const_get(ENV['LOG_LEVEL'] || 'info')
