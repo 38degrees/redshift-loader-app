@@ -1,5 +1,7 @@
 source 'https://rubygems.org'
 
+ruby '2.2.8'
+
 # Project requirements
 gem 'rake'
 gem 'unicorn'
