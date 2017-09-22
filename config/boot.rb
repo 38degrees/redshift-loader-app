@@ -25,5 +25,5 @@ end
 
 Padrino.load!
 
-Delayed::Worker.logger = Logger.new(STDOUT)
-Delayed::Worker.destroy_failed_jobs = false
+Padrino.require_dependencies "#{Padrino.root}/config/initializers/**/*.rb"
+require Padrino.root('config', 'workers.rb')
