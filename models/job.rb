@@ -24,6 +24,7 @@ class Job < ActiveRecord::Base
       setup_connection
       self.tables.each do |table|
         puts "Resetting #{table.destination_name}"
+        logger.info "Resetting #{table.destination_name}"
         table.update_attributes({
           delete_on_reset: true,
           reset_updated_key: '1970-01-01 00:00:00'
