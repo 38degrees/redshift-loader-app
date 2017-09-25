@@ -11,7 +11,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 10) do
+ActiveRecord::Schema.define(version: 11) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -90,6 +90,7 @@ ActiveRecord::Schema.define(version: 10) do
     t.boolean  "delete_on_reset"
     t.text     "copy_mode"
     t.boolean  "disabled"
+    t.boolean  "run_as_separate_job"
   end
 
 end

@@ -136,6 +136,15 @@ class Table < ActiveRecord::Base
     end
 
     def copy
+      if self.respond_to?(:run_as_separate_job) && run_as_separate_job
+        logger.info "Running copy of table #{source_name} as a separate job"
+        TableWorker.perform_async(self.id)
+      else
+        copy_now
+      end
+    end
+    
+    def copy_now
         started_at = Time.now
         return unless (self.check && self.enabled?)
         
