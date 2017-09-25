@@ -3,10 +3,11 @@ class Job < ActiveRecord::Base
 
     def self.admin_fields 
         {
-          :name => :text,
-          :tables => :collection,
-          :source_connection_string => :text,
-          :destination_connection_string => :text
+          id: {type: :number, edit: false},
+          name: :text,
+          tables: :collection,
+          source_connection_string: :text,
+          destination_connection_string: :text
         }
     end
 
