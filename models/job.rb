@@ -11,12 +11,18 @@ class Job < ActiveRecord::Base
     end
 
     def run
+        started_at = Time.now
+        logger.info "Running job #{name}"
+        
         setup_connection
         tables.each do |table|
             puts "Copying #{table.source_name} to #{table.destination_name}"
             logger.info "Copying #{table.source_name} to #{table.destination_name}"
             table.copy
         end
+        
+        finished_at = Time.now
+        logger.info "Total time taken to run job #{name} was #{finished_at - started_at} seconds"
     end
 
     def reset(confirmation)

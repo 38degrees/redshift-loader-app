@@ -136,7 +136,7 @@ class Table < ActiveRecord::Base
     end
 
     def copy
-        started_at = Time.now         
+        started_at = Time.now
         return unless (self.check && self.enabled?)
         
         logger.info "About to copy data for table #{source_name} - insert_only flag is set to [#{insert_only}] - copy_mode is set to [#{copy_mode}]"
@@ -147,30 +147,32 @@ class Table < ActiveRecord::Base
         logger.info "Getting new rows for table #{source_name}"
         result = self.new_rows
         logger.info "Retrieved #{result.count} rows from #{source_name}"
+        
+        temp_table_name = "stage_#{job_id}_#{source_name}"
 
         if result.count > 0
             logger.info "Loading #{source_name} data to Redshift"
-            destination_connection.execute("CREATE TEMP TABLE stage (LIKE #{destination_name});")
+            destination_connection.execute("CREATE TEMP TABLE #{temp_table_name} (LIKE #{destination_name});")
 
             result.each_slice(import_chunk_size) do |slice|
-                logger.info " - Copying #{source_name} data to S3"
+                logger.info " - Copying chunk of #{source_name} data to S3"
                 csv_string = CSV.generate do |csv|
                   slice.each do |row|
                       csv << row.values
                   end
                 end
 
-                filename = "#{source_name}_#{Time.now.to_i}.txt"
+                filename = "#{job_id}_#{source_name}_#{Time.now.to_i}.txt"
                 text_file = bucket.objects.build(filename)
                 text_file.content = csv_string
                 text_file.save
 
-                logger.info " - Copying #{source_name} data from S3 to Redshift"
+                logger.info " - Copying chunk of #{source_name} data from S3 to Redshift"
                 # Import the data to Redshift
-                destination_connection.execute("COPY stage from 's3://#{bucket_name}/#{filename}' 
+                destination_connection.execute("COPY #{temp_table_name} from 's3://#{bucket_name}/#{filename}' 
                   credentials 'aws_access_key_id=#{ENV['AWS_ACCESS_KEY_ID']};aws_secret_access_key=#{ENV['AWS_SECRET_ACCESS_KEY']}' delimiter ',' CSV QUOTE AS '\"' ;")
 
-                logger.info " - Deleting #{source_name} data from S3"
+                logger.info " - Deleting chunk of #{source_name} data from S3"
                 text_file.destroy
             end
 
@@ -178,15 +180,15 @@ class Table < ActiveRecord::Base
             destination_connection.transaction do
                 unless insert_only_mode?
                     logger.debug "Deleting rows which have been updated from #{destination_name} because table is not in insert only mode"
-                    destination_connection.execute("DELETE FROM #{destination_name} USING stage WHERE #{destination_name}.#{primary_key} = stage.#{primary_key}")
+                    destination_connection.execute("DELETE FROM #{destination_name} USING #{temp_table_name} WHERE #{destination_name}.#{primary_key} = #{temp_table_name}.#{primary_key}")
                 end
                 logger.debug "Inserting rows into #{destination_name}"
-                destination_connection.execute("INSERT INTO #{destination_name} SELECT * FROM stage")
+                destination_connection.execute("INSERT INTO #{destination_name} SELECT * FROM #{temp_table_name}")
             end
 
             #update max_updated_at and max_primary_key
             x = destination_connection.execute("SELECT MAX(#{primary_key}) as max_primary_key, MAX(#{updated_key}) as max_updated_key
-                FROM stage WHERE #{updated_key} = (SELECT MAX(#{updated_key}) FROM stage)").first
+                FROM #{temp_table_name} WHERE #{updated_key} = (SELECT MAX(#{updated_key}) FROM #{temp_table_name})").first
 
             logger.info "Max updated_key for #{source_name} is now #{x['max_updated_key']}"
             update_attributes({
@@ -194,7 +196,7 @@ class Table < ActiveRecord::Base
                 max_updated_key: x['max_updated_key']
                 })
 
-            destination_connection.execute("DROP TABLE stage;")
+            destination_connection.execute("DROP TABLE #{temp_table_name};")
         end
 
         #Log for benchmarking
