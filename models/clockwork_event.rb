@@ -4,16 +4,17 @@ class ClockworkEvent < ActiveRecord::Base
 
     def self.admin_fields
       {
+        id: {type: :number, edit: false},
         name: :text,
         statement: :text_area,
         frequency: :text,
         at: :text,
         queue: :text,
-        runs: {:type => :text, :edit => false},
-        last_run_at: {:type => :text, :edit => false},
-        last_succeeded_at: {:type => :text, :edit => false},
-        error_message: {:type => :text, :edit => false},
-        running: {:type => :check_box, :edit => false}
+        runs: {type: :text, edit: false},
+        last_run_at: {type: :text, edit: false},
+        last_succeeded_at: {type: :text, edit: false},
+        error_message: {type: :text, edit: false},
+        running: {type: :check_box, edit: false}
       }
     end
 

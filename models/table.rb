@@ -7,16 +7,18 @@ class Table < ActiveRecord::Base
 
     def self.admin_fields 
         {
-          :job_id => :lookup,
-          :source_name => :text,
-          :destination_name => :text,
-          :primary_key => :text,
-          :updated_key => :text,
-          :insert_only => :check_box,   #TODO: insert_only effectively becomes deprecated once copy_mode is proven, so come back and delete it
-          :copy_mode => :text,
-          :disabled => :check_box,
-          :max_updated_key => :text,
-          :max_primary_key => :text
+          id: {type: :number, edit: false},
+          job_id: :lookup,
+          source_name: :text,
+          destination_name: :text,
+          primary_key: :text,
+          updated_key: :text,
+          insert_only: :check_box,  #TODO: insert_only effectively becomes deprecated once copy_mode is proven, so come back and delete it
+          copy_mode: :text,
+          disabled: :check_box,
+          run_as_separate_job: :check_box,
+          max_updated_key: {type: :text, edit: false},
+          max_primary_key: {type: :text, edit: false}
         }
     end
     
@@ -191,7 +193,7 @@ class Table < ActiveRecord::Base
 
         #Log for benchmarking
         finished_at = Time.now
-        logger.info "Total time taken to copy table #{source_name} to #{destination_name} was #{finished_at - started_at} seconds"
+        logger.info "Total time taken to copy #{result.count} rows from #{source_name} to #{destination_name} was #{finished_at - started_at} seconds"
         self.table_copies << TableCopy.create(text: "Copied #{source_name} to #{destination_name}", rows_copied: result.count, started_at: started_at, finished_at: finished_at)
 
         # Do it again if we hit up against the row limit
@@ -216,7 +218,7 @@ class Table < ActiveRecord::Base
         filenames = []
         
         # Don't bother with chunk size < 1000
-        chunk_size = [ (results.count.to_f / ENV['PARALLEL_PROCESSING_NODE_SLICES']).ceil, 1000].max
+        chunk_size = [ (results.count.to_f / ENV['PARALLEL_PROCESSING_NODE_SLICES'].to_i).ceil, 1000].max
         
         results.each_slice(chunk_size).with_index do |slice, i|
           filename = "#{file_prefix}.txt.#{i+1}"
@@ -234,8 +236,8 @@ class Table < ActiveRecord::Base
         end
         
         # Create the manifest, listing all the data files
-        manifest_content = { "entries": [] }
-        filenames.each { |f|  manifest_content["entries"] << { "url": "s3://#{bucket_name}/#{f.key}", "mandatory": true }  }
+        manifest_content = { "entries" => [] }
+        filenames.each { |f|  manifest_content["entries"] << { "url" => "s3://#{bucket_name}/#{f}", "mandatory" => true }  }
         manifest_filename = "#{file_prefix}.manifest"
         manifest_file = bucket.objects.build(manifest_filename)
         manifest_file.content = manifest_content.to_json
