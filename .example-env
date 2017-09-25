@@ -16,3 +16,9 @@ REDIS_POOL_SIZE=2
 SIDEKIQ_WORKERS=2
 
 SESSION_SECRET=topsecret
+
+AWS_ACCESS_KEY_ID=<key>
+AWS_SECRET_ACCESS_KEY=<secret>
+S3_BUCKET_NAME=logs-for-etl-testing
+
+PARALLEL_PROCESSING_NODE_SLICES=12    # This should be set to the number of slices your redshift cluster has - see http://docs.aws.amazon.com/redshift/latest/mgmt/working-with-clusters.html#rs-about-clusters-and-nodes

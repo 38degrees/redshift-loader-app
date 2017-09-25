@@ -158,33 +158,13 @@ class Table < ActiveRecord::Base
         result = self.new_rows
         logger.info "Retrieved #{result.count} rows from #{source_name}"
         
-        temp_table_name = "stage_#{job_id}_#{source_name}"
-
         if result.count > 0
             logger.info "Loading #{source_name} data to Redshift"
+            
+            temp_table_name = "stage_#{job_id}_#{source_name}"
             destination_connection.execute("CREATE TEMP TABLE #{temp_table_name} (LIKE #{destination_name});")
-
-            result.each_slice(import_chunk_size) do |slice|
-                logger.info " - Copying chunk of #{source_name} data to S3"
-                csv_string = CSV.generate do |csv|
-                  slice.each do |row|
-                      csv << row.values
-                  end
-                end
-
-                filename = "#{job_id}_#{source_name}_#{Time.now.to_i}.txt"
-                text_file = bucket.objects.build(filename)
-                text_file.content = csv_string
-                text_file.save
-
-                logger.info " - Copying chunk of #{source_name} data from S3 to Redshift"
-                # Import the data to Redshift
-                destination_connection.execute("COPY #{temp_table_name} from 's3://#{bucket_name}/#{filename}' 
-                  credentials 'aws_access_key_id=#{ENV['AWS_ACCESS_KEY_ID']};aws_secret_access_key=#{ENV['AWS_SECRET_ACCESS_KEY']}' delimiter ',' CSV QUOTE AS '\"' ;")
-
-                logger.info " - Deleting chunk of #{source_name} data from S3"
-                text_file.destroy
-            end
+            
+            copy_results_to_table(temp_table_name, result)
 
             logger.info "Merging #{source_name} data into main table #{destination_name}"
             destination_connection.transaction do
@@ -223,6 +203,84 @@ class Table < ActiveRecord::Base
             end
         end
     end
+    
+    
+    def copy_results_to_table(table_name, results)
+      if ENV['PARALLEL_PROCESSING_NODE_SLICES']
+        
+        # Parallel processing version - create all files first, then load into table in parallel.
+        # See http://docs.aws.amazon.com/redshift/latest/dg/t_Loading-data-from-S3.html
+        # and http://docs.aws.amazon.com/redshift/latest/dg/loading-data-files-using-manifest.html
+        
+        file_prefix = "#{job_id}_#{source_name}_#{Time.now.to_i}"
+        filenames = []
+        
+        # Don't bother with chunk size < 1000
+        chunk_size = [ (results.count.to_f / ENV['PARALLEL_PROCESSING_NODE_SLICES']).ceil, 1000].max
+        
+        results.each_slice(chunk_size).with_index do |slice, i|
+          filename = "#{file_prefix}.txt.#{i+1}"
+          logger.info " - Copying chunk #{i+1} of #{source_name} data to S3 (#{filename})"
+          csv_string = CSV.generate do |csv|
+            slice.each do |row|
+              csv << row.values
+            end
+          end
+          
+          filenames << filename
+          text_file = bucket.objects.build(filename)
+          text_file.content = csv_string
+          text_file.save
+        end
+        
+        # Create the manifest, listing all the data files
+        manifest_content = { "entries": [] }
+        filenames.each { |f|  manifest_content["entries"] << { "url": "s3://#{bucket_name}/#{f.key}", "mandatory": true }  }
+        manifest_filename = "#{file_prefix}.manifest"
+        manifest_file = bucket.objects.build(manifest_filename)
+        manifest_file.content = manifest_content.to_json
+        manifest_file.save
+
+        logger.info "Copying all chunks of #{source_name} data from S3 to Redshift"
+        # Import the data to Redshift
+        destination_connection.execute("COPY #{table_name} from 's3://#{bucket_name}/#{manifest_filename}' 
+            credentials 'aws_access_key_id=#{ENV['AWS_ACCESS_KEY_ID']};aws_secret_access_key=#{ENV['AWS_SECRET_ACCESS_KEY']}' delimiter ',' CSV QUOTE AS '\"'  manifest;")
+        
+        manifest_file.destroy
+        
+        filenames.each do |f|
+          logger.info " - Deleting chunk of #{source_name} data from S3 (#{f})"
+          bucket.objects.find(f).destroy
+        end
+        
+      else
+        
+        # Non-parallel processing version - create then load one file at a time
+        results.each_slice(import_chunk_size) do |slice|
+          logger.info " - Copying chunk of #{source_name} data to S3"
+          csv_string = CSV.generate do |csv|
+            slice.each do |row|
+              csv << row.values
+            end
+          end
+
+          filename = "#{job_id}_#{source_name}_#{Time.now.to_i}.txt"
+          text_file = bucket.objects.build(filename)
+          text_file.content = csv_string
+          text_file.save
+
+          logger.info " - Copying chunk of #{source_name} data from S3 to Redshift"
+          # Import the data to Redshift
+          destination_connection.execute("COPY #{table_name} from 's3://#{bucket_name}/#{filename}' 
+              credentials 'aws_access_key_id=#{ENV['AWS_ACCESS_KEY_ID']};aws_secret_access_key=#{ENV['AWS_SECRET_ACCESS_KEY']}' delimiter ',' CSV QUOTE AS '\"' ;")
+
+          logger.info " - Deleting chunk of #{source_name} data from S3"
+          text_file.destroy
+        end
+        
+      end
+    end
+    
     
     # Sidekiq Unique Jobs hook - run once block has yielded and lock is released
     # Need to call copy again AFTER lock is released, otherwise won't be able to
