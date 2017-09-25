@@ -16,8 +16,8 @@ class Job < ActiveRecord::Base
         
         setup_connection
         tables.each do |table|
-            puts "Copying #{table.source_name} to #{table.destination_name}"
-            logger.info "Copying #{table.source_name} to #{table.destination_name}"
+            puts "Job #{name} - Copying #{table.source_name} to #{table.destination_name}"
+            logger.info "Job #{name} - Copying #{table.source_name} to #{table.destination_name}"
             table.copy
         end
         
