@@ -16,21 +16,6 @@ class ClockworkEvent < ActiveRecord::Base
         running: {:type => :check_box, :edit => false}
       }
     end
-    
-    # Don't run if we last succeeded within frequency seconds
-    #NOTE: This shouldn't be necessary, but is due to Clockwork bug... See long comment in config/clock.rb
-    def if?(time)
-        return true if !last_succeeded_at.present?
-        
-        time_since_last_success = (time - last_succeeded_at.to_datetime)
-        if  time_since_last_success >= frequency.to_i.seconds
-            logger.debug "It's been #{time_since_last_success} since last success of #{self.id} - #{self.name}, frequency is #{frequency} s, triggering job"
-            return true
-        else
-            logger.debug "It's been #{time_since_last_success} since last success of #{self.id} - #{self.name}, frequency is #{frequency} s, NOT triggering job"
-            return false
-        end
-    end
 
     def schedule
       if running && (DateTime.now - last_run_at.to_datetime) * 1.day > 61.seconds
