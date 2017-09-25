@@ -5,18 +5,17 @@ class TableWorker
   # The retry will be ~15s after the initial failure, according to Sidekiq docs:
   # https://github.com/mperham/sidekiq/wiki/Error-Handling#automatic-job-retry
   #
-  # Also, only allow one instance of each Table to be running at a time using sidekiq-unique-jobs
-  # (use unique until_executing because we want a table copy to be able to schedule
-  # another instance of itself in case there are too many rows to copy in one hit)
+  # Also, only allow one instance per lock_name to be running at a time using sidekiq-unique-jobs
   sidekiq_options retry: 1,
-                  unique: :until_executing,
+                  unique: :until_and_while_executing,
                   unique_args: :unique_args
 
+  # Lock on the lock_name arg
   def self.unique_args(args)
-    [ args[0] ]
+    [ args[1] ]
   end
   
-  def perform(table_id)
+  def perform(table_id, lock_name)
     Table.find(table_id).copy_now
   end
 end

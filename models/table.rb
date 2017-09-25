@@ -137,8 +137,9 @@ class Table < ActiveRecord::Base
 
     def copy
       if self.respond_to?(:run_as_separate_job) && run_as_separate_job
-        logger.info "Running copy of table #{source_name} as a separate job"
-        TableWorker.perform_async(self.id)
+        lock_name = "#{self.destination_name}"  # Ensure only 1 instance queued / running at a time for the destination table name!
+        logger.info "Running copy of table #{source_name} as a separate job (using lock #{lock_name} for Sidekiq Unique Jobs)"
+        TableWorker.perform_async(self.id, lock_name)
       else
         copy_now
       end
@@ -215,8 +216,22 @@ class Table < ActiveRecord::Base
 
         # Do it again if we hit up against the row limit
         if result.count == import_row_limit
-            copy
+            if self.respond_to?(:run_as_separate_job) && run_as_separate_job
+                @rerun = true   # Will be checked in after_unlock hook
+            else
+                copy
+            end
         end
+    end
+    
+    # Sidekiq Unique Jobs hook - run once block has yielded and lock is released
+    # Need to call copy again AFTER lock is released, otherwise won't be able to
+    # schedule another instance of the table copy
+    def after_unlock
+      if @rerun
+        @rerun = false
+        copy
+      end
     end
 
     def import_row_limit
