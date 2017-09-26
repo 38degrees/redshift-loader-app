@@ -7,8 +7,9 @@ class ClockworkEventWorker
   #
   # Also, only allow one instance of each ClockworkEvent to be running at a time using sidekiq-unique-jobs
   sidekiq_options retry: 1,
-                  unique: :until_and_while_executing,
-                  unique_args: :unique_args
+                  unique: :until_executed,
+                  unique_args: :unique_args,
+                  lock_expiration: (2 * 60 * 60)  # 2 hours
 
   def self.unique_args(args)
     [ args[0] ]

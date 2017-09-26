@@ -8,7 +8,8 @@ class TableWorker
   # Also, only allow one instance per lock_name to be running at a time using sidekiq-unique-jobs
   sidekiq_options retry: 1,
                   unique: :until_executed,
-                  unique_args: :unique_args
+                  unique_args: :unique_args,
+                  lock_expiration: (2 * 60 * 60)  # 2 hours
 
   # Lock on the lock_name arg
   def self.unique_args(args)
