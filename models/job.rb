@@ -59,16 +59,16 @@ class Job < ActiveRecord::Base
     end
 
     def setup_connection
-        SourceDb.establish_connection source_connection_string
-        DestinationDb.establish_connection destination_connection_string
+        SourceDb.setup_connection(self.id, source_connection_string)
+        DestinationDb.setup_connection(self.id, destination_connection_string)
     end
 
     def source_connection
-      SourceDb.connection
+      SourceDb.get_connection(self.id)
     end
 
     def destination_connection
-      DestinationDb.connection
+      DestinationDb.get_connection(self.id)
     end
 
     # Discovers all tables in source
