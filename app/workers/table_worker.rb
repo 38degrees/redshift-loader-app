@@ -7,7 +7,7 @@ class TableWorker
   #
   # Also, only allow one instance per lock_name to be running at a time using sidekiq-unique-jobs
   sidekiq_options retry: 1,
-                  unique: :until_and_while_executing,
+                  unique: :until_executed,
                   unique_args: :unique_args
 
   # Lock on the lock_name arg
@@ -16,6 +16,24 @@ class TableWorker
   end
   
   def perform(table_id, lock_name)
-    Table.find(table_id).copy_now
+    @table_id = table_id
+    @lock_name = lock_name
+
+    t = Table.find(@table_id)
+    rows_copied = t.copy_now
+    
+    # Should schedule again if we hit the row limit, as there are more rows to copy.
+    # The until_executed lock is still in play here, so do the scheduling in after_unlock
+    @run_again = (rows_copied >= t.import_row_limit)
+  end
+  
+  # Sidekiq Unique Jobs hook - run once block has yielded and lock is released.
+  # Need to schedule anotehr run AFTER unique lock is released
+  def after_unlock
+    logger.debug "Sidekiq Unique Jobs after_unlock hook triggered"
+    if @run_again
+      logger.info "@run_again was set, queuing another run of TableWorker for table ID #{@table_id}"
+      TableWorker.perform_async(@table_id, @lock_name)
+    end
   end
 end

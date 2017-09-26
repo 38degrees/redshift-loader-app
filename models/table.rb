@@ -143,13 +143,18 @@ class Table < ActiveRecord::Base
         logger.info "Running copy of table #{source_name} as a separate job (using lock #{lock_name} for Sidekiq Unique Jobs)"
         TableWorker.perform_async(self.id, lock_name)
       else
-        copy_now
+        copied_row_count = nil
+        # Run the copy_now method until there's no longer any more rows to copy
+        # (ie. we're not hitting up against the impot limit)
+        while !copied_row_count || copied_row_count >= import_row_limit do
+          copied_row_count = copy_now
+        end
       end
     end
     
     def copy_now
         started_at = Time.now
-        return unless (self.check && self.enabled?)
+        return 0 unless (self.check && self.enabled?)
         
         logger.info "About to copy data for table #{source_name} - insert_only flag is set to [#{insert_only}] - copy_mode is set to [#{copy_mode}]"
         
@@ -196,14 +201,8 @@ class Table < ActiveRecord::Base
         logger.info "Total time taken to copy #{result.count} rows from #{source_name} to #{destination_name} was #{finished_at - started_at} seconds"
         self.table_copies << TableCopy.create(text: "Copied #{source_name} to #{destination_name}", rows_copied: result.count, started_at: started_at, finished_at: finished_at)
 
-        # Do it again if we hit up against the row limit
-        if result.count == import_row_limit
-            if self.respond_to?(:run_as_separate_job) && run_as_separate_job
-                @rerun = true   # Will be checked in after_unlock hook
-            else
-                copy
-            end
-        end
+        # Return the result count to the caller
+        return result.count
     end
     
     
@@ -280,17 +279,6 @@ class Table < ActiveRecord::Base
           text_file.destroy
         end
         
-      end
-    end
-    
-    
-    # Sidekiq Unique Jobs hook - run once block has yielded and lock is released
-    # Need to call copy again AFTER lock is released, otherwise won't be able to
-    # schedule another instance of the table copy
-    def after_unlock
-      if @rerun
-        @rerun = false
-        copy
       end
     end
 
