@@ -108,7 +108,7 @@ class Table < ActiveRecord::Base
         sql += " ORDER BY #{primary_key} ASC"
         sql += " LIMIT #{import_row_limit}"
       else
-        sql += " WHERE #{primary_key} > #{max_primary_key} OR #{updated_key} > '#{max_updated_key.strftime('%Y-%m-%d %H:%M:%S.%N')}'"
+        sql += " WHERE ( #{updated_key} >= '#{max_updated_key.strftime('%Y-%m-%d %H:%M:%S.%N')}' AND #{primary_key} > #{max_primary_key}) OR #{updated_key} > '#{max_updated_key.strftime('%Y-%m-%d %H:%M:%S.%N')}'"
         sql += " ORDER BY #{updated_key}, #{primary_key} ASC"
         sql += " LIMIT #{import_row_limit}"
       end
