@@ -17,6 +17,7 @@ class Table < ActiveRecord::Base
           copy_mode: :text,
           disabled: :check_box,
           run_as_separate_job: :check_box,
+          time_travel_scan_back_period: :number,
           max_updated_key: {type: :text, edit: false},
           max_primary_key: {type: :text, edit: false}
         }
@@ -97,25 +98,21 @@ class Table < ActiveRecord::Base
         end
     end
 
-    def where_statement_for_source
-        unless max_updated_key
-            update_attribute(:max_updated_key, MIN_UPDATED_KEY)
-        end
-
-        unless max_primary_key
-            update_attribute(:max_primary_key, MIN_PRIMARY_KEY)
-        end
-
-        if insert_only_mode?
-            "WHERE #{primary_key} > #{max_primary_key}"
-        else
-            "WHERE ( #{updated_key} >= '#{max_updated_key.strftime('%Y-%m-%d %H:%M:%S.%N')}' AND #{primary_key} > #{max_primary_key}) OR #{updated_key} > '#{max_updated_key.strftime('%Y-%m-%d %H:%M:%S.%N')}'"
-        end
-    end
-
     def new_rows
-        sql = "SELECT #{source_columns.join(',')} FROM #{source_name} #{where_statement_for_source} ORDER BY #{updated_key}, #{primary_key} ASC LIMIT #{import_row_limit}" 
-        source_connection.execute(sql)
+      update_attribute(:max_updated_key, MIN_UPDATED_KEY) unless max_updated_key
+      update_attribute(:max_primary_key, MIN_PRIMARY_KEY) unless max_primary_key
+      
+      sql = "SELECT #{source_columns.join(',')} FROM #{source_name}"
+      if insert_only_mode?
+        sql += " WHERE #{primary_key} > #{max_primary_key}"
+        sql += " ORDER BY #{primary_key} ASC"
+        sql += " LIMIT #{import_row_limit}"
+      else
+        sql += " WHERE #{primary_key} > #{max_primary_key} OR #{updated_key} > '#{max_updated_key.strftime('%Y-%m-%d %H:%M:%S.%N')}'"
+        sql += " ORDER BY #{updated_key}, #{primary_key} ASC"
+        sql += " LIMIT #{import_row_limit}"
+      end
+      source_connection.execute(sql)
     end
 
     def check_for_time_travelling_data
