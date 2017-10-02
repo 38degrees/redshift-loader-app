@@ -11,11 +11,11 @@ class FullSyncTable < Table
   #
   # Eg. Assume initially we have a populated destination table.
   # When the copy job runs for FullSyncTable, it will check if a table called
-  # "#{destination_name}_full_sync_table_swap" exists. If not, this will be
-  # created, and a rows will be incrementally copied over to this table. When a
+  # "full_sync_swap_table_#{destination_name}" exists. If not, this will be
+  # created, and rows will be incrementally copied over to this table. When a
   # run of the copy job detects that all rows have been copied to the swap
   # table, it will swap out the existing table for the swap table in a
-  # transaction. Next time the copy job runs, the swap table will not be preset,
+  # transaction. Next time the copy job runs, the swap table will not be present,
   # so will be re-created, and the cycle starts again.
   #
   # This means that the value of max_updated_key reflects the current max 
