@@ -4,6 +4,8 @@ class Table < ActiveRecord::Base
     
     belongs_to :job
     has_many :table_copies
+    
+    self.inheritance_column = 'table_copy_type'
 
     def self.admin_fields 
         {
@@ -13,38 +15,16 @@ class Table < ActiveRecord::Base
           destination_name: :text,
           primary_key: :text,
           updated_key: :text,
-          insert_only: :check_box,  #TODO: insert_only effectively becomes deprecated once copy_mode is proven, so come back and delete it
-          copy_mode: :text,
+          #TODO: insert_only and copy_mode are deprecated! Delete altogether later...
+          #insert_only: :check_box,
+          #copy_mode: :text,
+          table_copy_type: :text,
           disabled: :check_box,
           run_as_separate_job: :check_box,
           time_travel_scan_back_period: :number,
           max_updated_key: {type: :text, edit: false},
           max_primary_key: {type: :text, edit: false}
         }
-    end
-    
-    def insert_only_mode?
-      if copy_mode.present?
-        return copy_mode == 'INSERT_ONLY'
-      else
-        return insert_only
-      end
-    end
-    
-    def insert_and_update_mode?
-      if copy_mode.present?
-        copy_mode == 'INSERT_AND_UPDATE'
-      else
-        return !insert_only
-      end
-    end
-    
-    def full_data_sync_mode?
-      if copy_mode.present?
-        return copy_mode == 'FULL_DATA_SYNC'
-      else
-        return false
-      end
     end
 
     def source_connection
@@ -79,9 +59,9 @@ class Table < ActiveRecord::Base
     end
 
     def apply_resets
-        #use this when doing a full data sync, or to rewind and catch up some data
-        if full_data_sync_mode? || reset_updated_key
-            rewind_time = (full_data_sync_mode? ? MIN_UPDATED_KEY : reset_updated_key)
+        #use this to rewind and catch up some data
+        if reset_updated_key
+            rewind_time = reset_updated_key
             logger.info "Rewinding data sync on #{source_name} to #{rewind_time}"
             update_attributes({
                 max_updated_key: rewind_time,
@@ -90,48 +70,32 @@ class Table < ActiveRecord::Base
                 })
         end
 
-        if full_data_sync_mode? || delete_on_reset
+        if delete_on_reset
             sql = "DELETE FROM #{destination_name} #{where_statement_for_source}"
             logger.info "Deleting data from #{destination_name}: #{sql}"
             destination_connection.execute(sql)
             update_attribute(:delete_on_reset, nil)
         end
     end
+    
+    def where_statement_for_source
+      raise NotImplementedError.new("#{self.class.name}#where_statement_for_source is an abstract method.")
+    end
+    
+    def order_by_statement_for_source
+      raise NotImplementedError.new("#{self.class.name}#order_by_statement_for_source is an abstract method.")
+    end
 
     def new_rows
-      update_attribute(:max_updated_key, MIN_UPDATED_KEY) unless max_updated_key
-      update_attribute(:max_primary_key, MIN_PRIMARY_KEY) unless max_primary_key
-      
-      sql = "SELECT #{source_columns.join(',')} FROM #{source_name}"
-      if insert_only_mode?
-        sql += " WHERE #{primary_key} > #{max_primary_key}"
-        sql += " ORDER BY #{primary_key} ASC"
-        sql += " LIMIT #{import_row_limit}"
-      else
-        sql += " WHERE ( #{updated_key} >= '#{max_updated_key.strftime('%Y-%m-%d %H:%M:%S.%N')}' AND #{primary_key} > #{max_primary_key}) OR #{updated_key} > '#{max_updated_key.strftime('%Y-%m-%d %H:%M:%S.%N')}'"
-        sql += " ORDER BY #{updated_key}, #{primary_key} ASC"
-        sql += " LIMIT #{import_row_limit}"
-      end
+      sql = "SELECT #{source_columns.join(',')} FROM #{source_name}
+             #{where_statement_for_source}
+             #{order_by_statement_for_source}
+             LIMIT #{import_row_limit}"
       source_connection.execute(sql)
     end
 
     def check_for_time_travelling_data
-        # If data with an older 'updated_at' is inserted into a table after newer data has been loaded it will not be picked up.
-        # We can check to see if this has happened (heuristically) by looking at the count of data before the current
-        # max_updated_key in both databases. If everything is normal then count of destination.updated_key will be >= count of
-        # source.updated_key. Therefore if count destination.updated_key < count source.updated_key we assume that data has time
-        # travelled and rewind the max_updated_key
-        if time_travel_scan_back_period
-            sql = "SELECT COUNT(*) as count FROM #{destination_name} WHERE #{updated_key} >= '#{max_updated_key - time_travel_scan_back_period}' AND #{updated_key} < '#{max_updated_key}'"
-            destination_count = destination_connection.execute(sql).first['count'].to_i
-
-            sql = "SELECT COUNT(*) as count FROM #{source_name} WHERE #{updated_key} >= '#{max_updated_key - time_travel_scan_back_period}' AND #{updated_key} < '#{max_updated_key}'"
-            source_count = source_connection.execute(sql).first['count'].to_i
-
-            if source_count > destination_count
-                update_attribute(:reset_updated_key, max_updated_key - time_travel_scan_back_period)
-            end
-        end
+      raise NotImplementedError.new("#{self.class.name}#check_for_time_travelling_data is an abstract method.")
     end
 
     def copy
@@ -152,59 +116,47 @@ class Table < ActiveRecord::Base
     def copy_now
         started_at = Time.now
         return 0 unless (self.check && self.enabled?)
-        
         logger.info "About to copy data for table #{source_name} - insert_only flag is set to [#{insert_only}] - copy_mode is set to [#{copy_mode}]"
+        
+        pre_copy_steps
         
         self.check_for_time_travelling_data
         self.apply_resets
+        
+        # Ensure max keys are not nil
+        update_attribute(:max_updated_key, MIN_UPDATED_KEY) unless max_updated_key
+        update_attribute(:max_primary_key, MIN_PRIMARY_KEY) unless max_primary_key
 
         logger.info "Getting new rows for table #{source_name}"
         result = self.new_rows
         logger.info "Retrieved #{result.count} rows from #{source_name}"
         
         if result.count > 0
-            logger.info "Loading #{source_name} data to Redshift"
-            
-            temp_table_name = "stage_#{job_id}_#{source_name}"
-            destination_connection.execute("CREATE TEMP TABLE #{temp_table_name} (LIKE #{destination_name});")
-            
-            copy_results_to_table(temp_table_name, result)
+          logger.info "Loading #{source_name} data to Redshift"
+          
+          temp_table_name = "stage_#{job_id}_#{source_name}"
+          destination_connection.execute("CREATE TEMP TABLE #{temp_table_name} (LIKE #{destination_name});")
+          
+          copy_results_to_table(temp_table_name, result)
+          merge_results(temp_table_name, merge_to_table_name)
+          update_max_values(temp_table_name)
 
-            logger.info "Merging #{source_name} data into main table #{destination_name}"
-            destination_connection.transaction do
-                unless insert_only_mode?
-                    logger.debug "Deleting rows which have been updated from #{destination_name} because table is not in insert only mode"
-                    destination_connection.execute("DELETE FROM #{destination_name} USING #{temp_table_name} WHERE #{destination_name}.#{primary_key} = #{temp_table_name}.#{primary_key}")
-                end
-                logger.debug "Inserting rows into #{destination_name}"
-                destination_connection.execute("INSERT INTO #{destination_name} SELECT * FROM #{temp_table_name}")
-            end
-
-            #update max_updated_at and max_primary_key
-            x = destination_connection.execute("SELECT MAX(#{primary_key}) as max_primary_key, MAX(#{updated_key}) as max_updated_key
-                FROM #{temp_table_name} WHERE #{updated_key} = (SELECT MAX(#{updated_key}) FROM #{temp_table_name})").first
-
-            logger.info "Max updated_key for #{source_name} is now #{x['max_updated_key']}"
-            update_attributes({
-                max_primary_key: x['max_primary_key'].to_i,
-                max_updated_key: x['max_updated_key']
-                })
-
-            destination_connection.execute("DROP TABLE #{temp_table_name};")
+          destination_connection.execute("DROP TABLE #{temp_table_name};")
         end
 
         #Log for benchmarking
         finished_at = Time.now
-        logger.info "Total time taken to copy #{result.count} rows from #{source_name} to #{destination_name} was #{finished_at - started_at} seconds"
-        self.table_copies << TableCopy.create(text: "Copied #{source_name} to #{destination_name}", rows_copied: result.count, started_at: started_at, finished_at: finished_at)
-
+        logger.info "Total time taken to copy #{result.count} rows from #{source_name} to #{merge_to_table_name} was #{finished_at - started_at} seconds"
+        self.table_copies << TableCopy.create(text: "Copied #{source_name} to #{merge_to_table_name}", rows_copied: result.count, started_at: started_at, finished_at: finished_at)
+        
+        post_copy_steps(result)
+        
         # Return the result count to the caller
         return result.count
     end
     
-    
     def copy_results_to_table(table_name, results)
-      if ENV['PARALLEL_PROCESSING_NODE_SLICES']
+      if ENV['COPY_VIA_S3'] && ENV['PARALLEL_PROCESSING_NODE_SLICES']
         
         # Parallel processing version - create all files first, then load into table in parallel.
         # See http://docs.aws.amazon.com/redshift/latest/dg/t_Loading-data-from-S3.html
@@ -251,7 +203,7 @@ class Table < ActiveRecord::Base
           bucket.objects.find(f).destroy
         end
         
-      else
+      elsif ENV['COPY_VIA_S3']
         
         # Non-parallel processing version - create then load one file at a time
         results.each_slice(import_chunk_size) do |slice|
@@ -276,7 +228,52 @@ class Table < ActiveRecord::Base
           text_file.destroy
         end
         
+      else
+        
+        # Mainly for use in dev so we don't need to use S3 & redshift
+        results.each_slice(import_chunk_size) do |slice|
+          logger.info " - Copying chunk of #{source_name} data direct to #{table_name}"
+          columns = destination_connection.columns(destination_name).map{|col| "#{col.name}" }.join(',')
+          slice.each do |row|
+            destination_connection.execute("INSERT INTO #{table_name} (#{columns}) VALUES ('#{row.values.join("','")}');")
+          end
+        end
+        
       end
+    end
+    
+    def merge_results(from_table_name, to_table_name = self.destination_name)
+      logger.info "Merging #{source_name} data into main table #{to_table_name}"
+      destination_connection.transaction do
+        # Previously the delete didn't occur for insert only tables, but it should be quick and provides
+        # protection from duplicates incase of manual manipulation of the max PK, etc.
+        logger.debug "Deleting any rows from #{to_table_name} which would create duplicates"
+        destination_connection.execute("DELETE FROM #{to_table_name} USING #{from_table_name} WHERE #{to_table_name}.#{primary_key} = #{from_table_name}.#{primary_key}")
+        
+        logger.debug "Inserting rows into #{to_table_name}"
+        destination_connection.execute("INSERT INTO #{to_table_name} SELECT * FROM #{from_table_name}")
+      end
+    end
+    
+    def update_max_values(table_name = self.destination_name)
+      # Update max_updated_at and max_primary_key to the max values from the given table
+      # Default to the destination table itself, but also allow passing in a temp table,
+      # as this will contain less rows and should be quicker)
+      
+      raise NotImplementedError.new("#{self.class.name}#update_max_values is an abstract method.")
+    end
+    
+    def pre_copy_steps
+      # Empty by default
+    end
+    
+    def post_copy_steps(result)
+      # Empty by Default
+    end
+    
+    def merge_to_table_name
+      # Default to the destination table
+      destination_name
     end
 
     def import_row_limit
