@@ -18,6 +18,7 @@ class UpdateAndInsertTable < Table
   end
   
   def order_by_statement_for_source
+    # See comment on update_max_values to understand why ordering by both updated_key *and* primary_key are important...
     "ORDER BY #{updated_key}, #{primary_key} ASC"
   end
   
@@ -45,9 +46,27 @@ class UpdateAndInsertTable < Table
   end
   
   def update_max_values(table_name = self.destination_name)
-    sql = "SELECT MAX(#{primary_key}) as max_primary_key,
-                  MAX(#{updated_key}) as max_updated_key
-           FROM #{table_name}"
+    # Why are we selecting the max primary_key only considering those records that happen to have the max updated_key?
+    # Because we need to ensure that when selecting new rows we'll pickup rows that have the *same* updated_key and a
+    # higher primary_key, *not just* those that have a higher updated_key.
+    #
+    # Consider the following example:
+    # primary_key | updated_key
+    #        1001 | 2015-01-01
+    #        1002 | 2017-01-02
+    #        1003 | 2017-01-02
+    #        1004 | 2017-01-01
+    #
+    # If the import_row_limit was set to 1, and the job is run for the first time since records 1002 & 1003 were last
+    # updated, then the job will find record 1002 and update it (it will order 1002 before 1003 - see the ORDER BY clause
+    # which orders by updated_key and then by primary_key). Next run it needs to fine record 1003. Using the WHERE clause
+    # above, 1003 does not have an updated_key which is strictly greater than 1002's (2017-01-02), but it *does* have an
+    # equal updated_key and greater primary_key. So it's important we use the MAX primary_key, only considering those
+    # with the MAX updated_key for UpdateAndInsertTable. If we used the MAX primary_key of the whole table, we would miss
+    # this update of row 1003.
+    
+    sql = "SELECT MAX(#{primary_key}) as max_primary_key, MAX(#{updated_key}) as max_updated_key
+                  FROM #{table_name} WHERE #{updated_key} = (SELECT MAX(#{updated_key}) FROM #{table_name})"
     x = destination_connection.execute(sql).first
 
     logger.info "max_primary_key is now #{x['max_primary_key']} and max_updated_key is now #{x['max_updated_key']} for #{source_name}"
