@@ -156,6 +156,8 @@ class Table < ActiveRecord::Base
     end
     
     def copy_results_to_table(table_name, results)
+      dest_col_limits = get_destination_column_limits
+      
       if ENV['COPY_VIA_S3'] && ENV['PARALLEL_PROCESSING_NODE_SLICES']
         
         # Parallel processing version - create all files first, then load into table in parallel.
@@ -173,6 +175,7 @@ class Table < ActiveRecord::Base
           logger.info " - Copying chunk #{i+1} of #{source_name} data to S3 (#{filename})"
           csv_string = CSV.generate do |csv|
             slice.each do |row|
+              truncate_row_values!(row, dest_col_limits)
               csv << row.values
             end
           end
@@ -210,6 +213,7 @@ class Table < ActiveRecord::Base
           logger.info " - Copying chunk of #{source_name} data to S3"
           csv_string = CSV.generate do |csv|
             slice.each do |row|
+              truncate_row_values!(row, dest_col_limits)
               csv << row.values
             end
           end
@@ -235,6 +239,7 @@ class Table < ActiveRecord::Base
           logger.info " - Copying chunk of #{source_name} data direct to #{table_name}"
           columns = destination_connection.columns(destination_name).map{|col| "#{col.name}" }.join(',')
           slice.each do |row|
+            truncate_row_values!(row, dest_col_limits)
             destination_connection.execute("INSERT INTO #{table_name} (#{columns}) VALUES ('#{row.values.join("','")}');")
           end
         end
@@ -295,6 +300,30 @@ class Table < ActiveRecord::Base
 
     def bucket
         s3.buckets.find(bucket_name)
+    end
+    
+    def get_destination_column_limits
+      return {} unless ENV['AUTO_TRUNCATE_COLUMNS']
+      
+      limits_hash = destination_connection.columns(destination_name).each_with_object({}) do |col, limits_hash|
+        if col.sql_type.starts_with?("character varying") && col.limit
+          limits_hash[col.name] = col.limit
+        end
+      end
+      
+      logger.info "The following columns of #{destination_name} will be truncated: #{limits_hash}"
+      return limits_hash
+    end
+    
+    def truncate_row_values!(row, dest_col_limits)
+      return unless ENV['AUTO_TRUNCATE_COLUMNS']
+      
+      row.each do |col, value|
+        if dest_col_limits[col] && value.is_a?(String) && value.length > dest_col_limits[col]
+          row[col] = value.truncate(dest_col_limits[col], omission: '')
+          logger.warn "Truncated column #{col} of row #{primary_key}=#{row[primary_key]} because it was too long (#{value.length} vs max of #{dest_col_limits[col]} in destination DB)"
+        end
+      end
     end
     
 end
