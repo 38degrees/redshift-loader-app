@@ -9,7 +9,7 @@ class TableWorker
   sidekiq_options retry: 1,
                   unique: :until_executed,
                   unique_args: :unique_args,
-                  lock_expiration: (2 * 60 * 60)  # 2 hours
+                  lock_expiration: (1 * 60 * 60)  # 1 hour
 
   # Lock on the lock_name arg
   def self.unique_args(args)
