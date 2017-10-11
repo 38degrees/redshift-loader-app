@@ -116,7 +116,7 @@ class Table < ActiveRecord::Base
     def copy_now
         started_at = Time.now
         return 0 unless (self.check && self.enabled?)
-        logger.info "About to copy data for table #{source_name} - insert_only flag is set to [#{insert_only}] - copy_mode is set to [#{copy_mode}]"
+        logger.info "About to copy data for table #{source_name} - table_copy_type is #{table_copy_type}, using class #{self.class.name}"
         
         pre_copy_steps
         
