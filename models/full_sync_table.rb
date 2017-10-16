@@ -78,11 +78,12 @@ class FullSyncTable < Table
     # current version immediately will break currently executing queries, renaming to old will let them complete).
     if result.count < import_row_limit
       logger.info "Swap table #{swap_table_name} has all data from #{source_name}, renaming #{destination_name} to #{old_table_name} and renaming #{swap_table_name} to #{destination_name}"
-      sql = "BEGIN;
-               DROP TABLE IF EXISTS #{old_table_name};
-               ALTER TABLE #{destination_name} RENAME TO #{old_table_name};
-               ALTER TABLE #{swap_table_name} RENAME TO #{destination_name};
-             END;"
+      sql  = "BEGIN;"
+      sql += "GRANT SELECT ON #{swap_table_name} TO #{ENV['READ_ONLY_USER']};" if (ENV['READ_ONLY_USER'])
+      sql += "DROP TABLE IF EXISTS #{old_table_name};"
+      sql += "ALTER TABLE #{destination_name} RENAME TO #{old_table_name};"
+      sql += "ALTER TABLE #{swap_table_name} RENAME TO #{destination_name};"
+      sql += "END;"
       destination_connection.execute(sql)
       
       # Completed a full copy cycle, so reset the keys so we start again from scratch on the next run

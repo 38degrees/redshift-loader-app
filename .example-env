@@ -26,3 +26,7 @@ PARALLEL_PROCESSING_NODE_SLICES=12    # This should be set to the number of slic
 ADMIN_MODELS=Table,Job,ClockworkEvent
 
 IMPORT_ROW_LIMIT=1000000
+
+AUTO_TRUNCATE_COLUMNS=true
+
+READ_ONLY_USER=console
