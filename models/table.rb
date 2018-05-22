@@ -1,3 +1,5 @@
+require 'net/http'
+
 class Table < ActiveRecord::Base
     MIN_UPDATED_KEY = '1970-01-01'
     MIN_PRIMARY_KEY = 0
@@ -7,7 +9,7 @@ class Table < ActiveRecord::Base
     
     self.inheritance_column = 'table_copy_type'
 
-    def self.admin_fields 
+    def self.admin_fields
         {
           id: {type: :number, edit: false},
           job_id: :lookup,
@@ -325,5 +327,23 @@ class Table < ActiveRecord::Base
         end
       end
     end
-    
+
+    # This method should live elsewhere, putting here as a quick fix!
+    def post_warning(message)
+      logger.warn message
+      post_to_slack message
+    end
+
+    # This method should live elsewhere, putting here as a quick fix!
+    def post_to_slack(message)
+      if ENV['SLACK_URL']
+        uri = URI.parse(ENV['SLACK_URL'])
+        https = Net::HTTP.new(uri.host, uri.port)
+        https.use_ssl = true
+        request = Net::HTTP::Post.new(uri.request_uri, {'Content-Type' => 'text/json'})
+        request.body = {text: message}.to_json
+        https.request(request)
+      end
+    end
+
 end
