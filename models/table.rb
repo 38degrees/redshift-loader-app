@@ -40,7 +40,7 @@ class Table < ActiveRecord::Base
         source_columns = source_connection.columns(source_name).map{|col| col.name }
         destination_columns = destination_connection.columns(destination_name).map{|col| col.name }
         unless source_columns.sort == destination_columns.sort
-            logger.warn "Aborting copy! Tables #{source_name}, #{destination_name} don't match. (job #{job_id})"
+            post_warning "Aborting copy! Tables #{source_name}, #{destination_name} don't match. (job #{job_id})"
             return false
         end
         true
@@ -48,7 +48,7 @@ class Table < ActiveRecord::Base
     
     def enabled?
         if disabled
-            logger.info "Aborting copy. Table #{source_name} is disabled. (job #{job_id})"
+            post_warning "Aborting copy. Table #{source_name} is disabled. (job #{job_id})"
             return false
         end
         true
