@@ -336,13 +336,16 @@ class Table < ActiveRecord::Base
 
     # This method should live elsewhere, putting here as a quick fix!
     def post_to_slack(message)
+      logger.info 'Posting to Slack?'
       if ENV['SLACK_URL']
+        logger.info 'Yes, really posting to Slack!'
         uri = URI.parse(ENV['SLACK_URL'])
         https = Net::HTTP.new(uri.host, uri.port)
         https.use_ssl = true
         request = Net::HTTP::Post.new(uri.request_uri, {'Content-Type' => 'text/json'})
-        request.body = {text: message}.to_json
+        request.body = {text: "*RedshiftLoader:* #{message}"}.to_json
         https.request(request)
+        logger.info 'Posted to Slack. Phew!'
       end
     end
 
