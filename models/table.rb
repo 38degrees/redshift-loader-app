@@ -3,10 +3,10 @@ require 'net/http'
 class Table < ActiveRecord::Base
     MIN_UPDATED_KEY = '1970-01-01'
     MIN_PRIMARY_KEY = 0
-    
+
     belongs_to :job
     has_many :table_copies
-    
+
     self.inheritance_column = 'table_copy_type'
 
     def self.admin_fields
@@ -47,7 +47,7 @@ class Table < ActiveRecord::Base
         end
         true
     end
-    
+
     def enabled?
         if disabled
             logger.warn "Aborting copy. Table #{source_name} is disabled. (job #{job_id})"
@@ -79,11 +79,11 @@ class Table < ActiveRecord::Base
             update_attribute(:delete_on_reset, nil)
         end
     end
-    
+
     def where_statement_for_source
       raise NotImplementedError.new("#{self.class.name}#where_statement_for_source is an abstract method.")
     end
-    
+
     def order_by_statement_for_source
       raise NotImplementedError.new("#{self.class.name}#order_by_statement_for_source is an abstract method.")
     end
@@ -114,17 +114,17 @@ class Table < ActiveRecord::Base
         end
       end
     end
-    
+
     def copy_now
         started_at = Time.now
-        return 0 unless (self.check && self.enabled?)
+        return 0 unless (self.enabled? && self.check)
         logger.info "About to copy data for table #{source_name} - table_copy_type is #{table_copy_type}, using class #{self.class.name}"
-        
+
         pre_copy_steps
-        
+
         self.check_for_time_travelling_data
         self.apply_resets
-        
+
         # Ensure max keys are not nil
         update_attribute(:max_updated_key, MIN_UPDATED_KEY) unless max_updated_key
         update_attribute(:max_primary_key, MIN_PRIMARY_KEY) unless max_primary_key
@@ -132,13 +132,13 @@ class Table < ActiveRecord::Base
         logger.info "Getting new rows for table #{source_name}"
         result = self.new_rows
         logger.info "Retrieved #{result.count} rows from #{source_name}"
-        
+
         if result.count > 0
           logger.info "Loading #{source_name} data to Redshift"
-          
+
           temp_table_name = "stage_#{job_id}_#{source_name}"
           destination_connection.execute("CREATE TEMP TABLE #{temp_table_name} (LIKE #{destination_name});")
-          
+
           copy_results_to_table(temp_table_name, result)
           merge_results(temp_table_name, merge_to_table_name)
           update_max_values(temp_table_name)
@@ -150,28 +150,28 @@ class Table < ActiveRecord::Base
         finished_at = Time.now
         logger.info "Total time taken to copy #{result.count} rows from #{source_name} to #{merge_to_table_name} was #{finished_at - started_at} seconds"
         self.table_copies << TableCopy.create(text: "Copied #{source_name} to #{merge_to_table_name}", rows_copied: result.count, started_at: started_at, finished_at: finished_at)
-        
+
         post_copy_steps(result)
-        
+
         # Return the result count to the caller
         return result.count
     end
-    
+
     def copy_results_to_table(table_name, results)
       dest_col_limits = get_destination_column_limits
-      
+
       if ENV['COPY_VIA_S3'] && ENV['PARALLEL_PROCESSING_NODE_SLICES']
-        
+
         # Parallel processing version - create all files first, then load into table in parallel.
         # See http://docs.aws.amazon.com/redshift/latest/dg/t_Loading-data-from-S3.html
         # and http://docs.aws.amazon.com/redshift/latest/dg/loading-data-files-using-manifest.html
-        
+
         file_prefix = "#{job_id}_#{source_name}_#{Time.now.to_i}"
         filenames = []
-        
+
         # Don't bother with chunk size < 1000
         chunk_size = [ (results.count.to_f / ENV['PARALLEL_PROCESSING_NODE_SLICES'].to_i).ceil, 1000].max
-        
+
         results.each_slice(chunk_size).with_index do |slice, i|
           filename = "#{file_prefix}.txt.#{i+1}"
           logger.info " - Copying chunk #{i+1} of #{source_name} data to S3 (#{filename})"
@@ -181,13 +181,13 @@ class Table < ActiveRecord::Base
               csv << row.values
             end
           end
-          
+
           filenames << filename
           text_file = bucket.objects.build(filename)
           text_file.content = csv_string
           text_file.save
         end
-        
+
         # Create the manifest, listing all the data files
         manifest_content = { "entries" => [] }
         filenames.each { |f|  manifest_content["entries"] << { "url" => "s3://#{bucket_name}/#{f}", "mandatory" => true }  }
@@ -198,18 +198,18 @@ class Table < ActiveRecord::Base
 
         logger.info "Copying all chunks of #{source_name} data from S3 to Redshift"
         # Import the data to Redshift
-        destination_connection.execute("COPY #{table_name} from 's3://#{bucket_name}/#{manifest_filename}' 
+        destination_connection.execute("COPY #{table_name} from 's3://#{bucket_name}/#{manifest_filename}'
             credentials 'aws_access_key_id=#{ENV['AWS_ACCESS_KEY_ID']};aws_secret_access_key=#{ENV['AWS_SECRET_ACCESS_KEY']}' delimiter ',' CSV QUOTE AS '\"'  manifest;")
-        
+
         manifest_file.destroy
-        
+
         filenames.each do |f|
           logger.info " - Deleting chunk of #{source_name} data from S3 (#{f})"
           bucket.objects.find(f).destroy
         end
-        
+
       elsif ENV['COPY_VIA_S3']
-        
+
         # Non-parallel processing version - create then load one file at a time
         results.each_slice(import_chunk_size) do |slice|
           logger.info " - Copying chunk of #{source_name} data to S3"
@@ -227,15 +227,15 @@ class Table < ActiveRecord::Base
 
           logger.info " - Copying chunk of #{source_name} data from S3 to Redshift"
           # Import the data to Redshift
-          destination_connection.execute("COPY #{table_name} from 's3://#{bucket_name}/#{filename}' 
+          destination_connection.execute("COPY #{table_name} from 's3://#{bucket_name}/#{filename}'
               credentials 'aws_access_key_id=#{ENV['AWS_ACCESS_KEY_ID']};aws_secret_access_key=#{ENV['AWS_SECRET_ACCESS_KEY']}' delimiter ',' CSV QUOTE AS '\"' ;")
 
           logger.info " - Deleting chunk of #{source_name} data from S3"
           text_file.destroy
         end
-        
+
       else
-        
+
         # Mainly for use in dev so we don't need to use S3 & redshift
         results.each_slice(import_chunk_size) do |slice|
           logger.info " - Copying chunk of #{source_name} data direct to #{table_name}"
@@ -245,10 +245,10 @@ class Table < ActiveRecord::Base
             destination_connection.execute("INSERT INTO #{table_name} (#{columns}) VALUES ('#{row.values.join("','")}');")
           end
         end
-        
+
       end
     end
-    
+
     def merge_results(from_table_name, to_table_name = self.destination_name)
       logger.info "Merging #{source_name} data into main table #{to_table_name}"
       destination_connection.transaction do
@@ -256,28 +256,28 @@ class Table < ActiveRecord::Base
         # protection from duplicates incase of manual manipulation of the max PK, etc.
         logger.debug "Deleting any rows from #{to_table_name} which would create duplicates"
         destination_connection.execute("DELETE FROM #{to_table_name} USING #{from_table_name} WHERE #{to_table_name}.#{primary_key} = #{from_table_name}.#{primary_key}")
-        
+
         logger.debug "Inserting rows into #{to_table_name}"
         destination_connection.execute("INSERT INTO #{to_table_name} SELECT * FROM #{from_table_name}")
       end
     end
-    
+
     def update_max_values(table_name = self.destination_name)
       # Update max_updated_at and max_primary_key to the max values from the given table
       # Default to the destination table itself, but also allow passing in a temp table,
       # as this will contain less rows and should be quicker)
-      
+
       raise NotImplementedError.new("#{self.class.name}#update_max_values is an abstract method.")
     end
-    
+
     def pre_copy_steps
       # Empty by default
     end
-    
+
     def post_copy_steps(result)
       # Empty by Default
     end
-    
+
     def merge_to_table_name
       # Default to the destination table
       destination_name
@@ -296,30 +296,30 @@ class Table < ActiveRecord::Base
                           :secret_access_key => ENV['AWS_SECRET_ACCESS_KEY'])
     end
 
-    def bucket_name 
+    def bucket_name
         ENV['S3_BUCKET_NAME']
     end
 
     def bucket
         s3.buckets.find(bucket_name)
     end
-    
+
     def get_destination_column_limits
       return {} unless ENV['AUTO_TRUNCATE_COLUMNS']
-      
+
       limits_hash = destination_connection.columns(destination_name).each_with_object({}) do |col, limits_hash|
         if col.sql_type.starts_with?("character varying") && col.limit
           limits_hash[col.name] = col.limit
         end
       end
-      
+
       logger.info "The following columns of #{destination_name} will be truncated: #{limits_hash}"
       return limits_hash
     end
-    
+
     def truncate_row_values!(row, dest_col_limits)
       return unless ENV['AUTO_TRUNCATE_COLUMNS']
-      
+
       row.each do |col, value|
         if dest_col_limits[col] && value.is_a?(String) && value.length > dest_col_limits[col]
           row[col] = value.truncate(dest_col_limits[col], omission: '')
