@@ -20,7 +20,7 @@ gem 'activate-tools', git: 'https://github.com/wordsandwriting/activate-tools'
 
 # Component requirements
 gem 'bcrypt'
-gem 'activerecord', '>= 3.1', :require => 'active_record'
+gem 'activerecord', '>= 4.1.14.1', :require => 'active_record'
 gem 'pg'
 gem 'activerecord4-redshift-adapter'
 

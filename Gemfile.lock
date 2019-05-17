@@ -23,17 +23,17 @@ GIT
 GEM
   remote: https://rubygems.org/
   specs:
-    activemodel (4.1.13)
-      activesupport (= 4.1.13)
+    activemodel (4.1.16)
+      activesupport (= 4.1.16)
       builder (~> 3.1)
-    activerecord (4.1.13)
-      activemodel (= 4.1.13)
-      activesupport (= 4.1.13)
+    activerecord (4.1.16)
+      activemodel (= 4.1.16)
+      activesupport (= 4.1.16)
       arel (~> 5.0.0)
     activerecord4-redshift-adapter (0.1.1)
       activerecord (>= 4.0.0, < 4.2.0)
       pg
-    activesupport (4.1.13)
+    activesupport (4.1.16)
       i18n (~> 0.6, >= 0.6.9)
       json (~> 1.7, >= 1.7.7)
       minitest (~> 5.1)
@@ -41,11 +41,11 @@ GEM
       tzinfo (~> 1.1)
     arel (5.0.1.20140414130214)
     bcrypt (3.1.10)
-    builder (3.2.2)
+    builder (3.2.3)
     clockwork (2.0.2)
       activesupport
       tzinfo
-    concurrent-ruby (1.0.5)
+    concurrent-ruby (1.1.5)
     connection_pool (2.2.1)
     enumerable-lazy (0.0.2)
     foreman (0.84.0)
@@ -138,7 +138,7 @@ PLATFORMS
 DEPENDENCIES
   activate-admin!
   activate-tools!
-  activerecord (>= 3.1)
+  activerecord (>= 4.1.14.1)
   activerecord4-redshift-adapter
   bcrypt
   clockwork (~> 2.0)
