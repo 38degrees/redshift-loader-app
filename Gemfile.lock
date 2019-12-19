@@ -100,7 +100,7 @@ GEM
       activesupport (>= 3.1)
     pg (0.18.3)
     proxies (0.2.1)
-    rack (1.6.11)
+    rack (1.6.12)
     rack-protection (1.5.5)
       rack
     raindrops (0.15.0)
