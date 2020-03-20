@@ -1,33 +1,34 @@
-source 'https://rubygems.org'
+source 'https://rubygems.org' do
+  ruby '2.3.8'
 
-ruby '2.3.8'
+  gem 'padrino', '0.13.2'
 
-gem 'padrino', '0.13.2'
+  gem 'pg', '~> 0.21' # Can't be higher with Ruby 2.3.8
 
-# Project requirements
-gem 'rake'
-gem 'unicorn'
+  gem 'activerecord', require: 'active_record'
+  gem 'activerecord4-redshift-adapter'
 
-gem 's3'
+  gem 'bcrypt'
 
-gem 'clockwork'
+  gem 'sidekiq'
+  gem 'sidekiq-limit_fetch'
+  gem 'sidekiq-unique-jobs', '~> 5.0.11' # Can't be higher with 2.3.8
 
-gem 'sidekiq'
-gem 'sidekiq-limit_fetch'
-gem 'sidekiq-unique-jobs', '~> 5.0.10'
+  gem 'clockwork'
 
-gem 'newrelic_rpm'
+  gem 'rake'
 
-gem 'foreman'
+  gem 'unicorn'
 
-# Admin
-gem 'will_paginate', git: 'https://github.com/mislav/will_paginate'
+  gem 's3'
 
-gem 'activate-admin', git: 'https://github.com/wordsandwriting/activate-admin'
-gem 'activate-tools', git: 'https://github.com/wordsandwriting/activate-tools'
+  gem 'newrelic_rpm'
 
-# Component requirements
-gem 'activerecord', '>= 4.1.14.1', :require => 'active_record'
-gem 'activerecord4-redshift-adapter'
-gem 'bcrypt'
-gem 'pg'
+  gem 'foreman'
+
+  # Admin
+  gem 'will_paginate', git: 'https://github.com/mislav/will_paginate'
+
+  gem 'activate-admin', git: 'https://github.com/wordsandwriting/activate-admin'
+  gem 'activate-tools', git: 'https://github.com/wordsandwriting/activate-tools'
+end
