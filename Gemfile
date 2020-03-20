@@ -1,7 +1,7 @@
 source 'https://rubygems.org' do
   ruby '2.3.8'
 
-  gem 'padrino', '0.13.2'
+  gem 'padrino'
 
   gem 'pg', '~> 0.21' # Can't be higher with Ruby 2.3.8
 

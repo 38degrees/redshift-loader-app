@@ -145,7 +145,7 @@ DEPENDENCIES
   clockwork!
   foreman!
   newrelic_rpm!
-  padrino (= 0.13.2)!
+  padrino!
   pg (~> 0.21)!
   rake!
   s3!
