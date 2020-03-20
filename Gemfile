@@ -14,7 +14,7 @@ gem 'clockwork'
 
 gem 'sidekiq'
 gem 'sidekiq-limit_fetch'
-gem 'sidekiq-unique-jobs'
+gem 'sidekiq-unique-jobs', '~> 5.0.10'
 
 gem 'newrelic_rpm'
 
