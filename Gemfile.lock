@@ -39,6 +39,8 @@ GEM
       minitest (~> 5.1)
       thread_safe (~> 0.1)
       tzinfo (~> 1.1)
+    addressable (2.7.0)
+      public_suffix (>= 2.0.2, < 5.0)
     arel (5.0.1.20140414130214)
     bcrypt (3.1.10)
     builder (3.2.3)
@@ -99,15 +101,17 @@ GEM
     padrino-support (0.13.2)
       activesupport (>= 3.1)
     pg (0.18.3)
-    proxies (0.2.1)
+    proxies (0.2.3)
+    public_suffix (3.1.1)
     rack (1.6.12)
     rack-protection (1.5.5)
       rack
     raindrops (0.15.0)
     rake (10.4.2)
     redis (3.3.3)
-    s3 (0.3.23)
-      proxies (~> 0.2.0)
+    s3 (0.3.29)
+      addressable
+      proxies
     sidekiq (5.0.4)
       concurrent-ruby (~> 1.0)
       connection_pool (~> 2.2, >= 2.2.0)
@@ -147,7 +151,7 @@ DEPENDENCIES
   padrino (= 0.13.2)
   pg
   rake
-  s3
+  s3 (~> 0.3.29)
   sidekiq (~> 5.0.4)
   sidekiq-limit_fetch
   sidekiq-unique-jobs (~> 5.0.10)
@@ -158,4 +162,4 @@ RUBY VERSION
    ruby 2.2.8p477
 
 BUNDLED WITH
-   1.16.6
+   1.17.3

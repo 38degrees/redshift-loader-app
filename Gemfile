@@ -5,7 +5,7 @@ ruby '2.2.8'
 # Project requirements
 gem 'rake'
 gem 'unicorn'
-gem 's3' #AWS buckets
+gem 's3', '~> 0.3.29' # Fixes private method delegation errors on Ruby 2.5+
 gem 'clockwork', '~> 2.0' #clock process
 gem 'sidekiq', '~> 5.0.4'
 gem 'sidekiq-limit_fetch'
