@@ -20,7 +20,7 @@ source 'https://rubygems.org' do
 
   gem 'unicorn'
 
-  gem 's3', '~> 0.3.29' # Fixes private method delegation errors
+  gem 's3', '~> 0.3.28' # un-Fixes private method delegation errors
 
   gem 'newrelic_rpm'
 

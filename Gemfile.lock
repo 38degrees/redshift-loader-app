@@ -147,7 +147,7 @@ DEPENDENCIES
   padrino!
   pg (~> 0.21)!
   rake!
-  s3 (~> 0.3.29)!
+  s3 (~> 0.3.28)!
   sidekiq!
   sidekiq-limit_fetch!
   sidekiq-unique-jobs (~> 5.0.11)!
