@@ -74,8 +74,8 @@ su vagrant << EOF
 
 
     echo "*** STEP 3 - Installing ruby 2.2.6 using rbenv ***"
-    rbenv install 2.2.8
-    rbenv global 2.2.8
+    rbenv install 2.6.0
+    rbenv global 2.6.0
 
     gem install bundler
     rbenv rehash
