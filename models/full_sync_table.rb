@@ -79,23 +79,23 @@ class FullSyncTable < Table
     if result.count < import_row_limit
       logger.info "Swap table #{swap_table_name} has all data from #{source_name}, renaming #{destination_name} to #{old_table_name} and renaming #{swap_table_name} to #{destination_name}"
       sql  = "BEGIN;"
-      sql += "GRANT SELECT ON #{swap_table_name} TO #{ENV['READ_ONLY_USER']};" if (ENV['READ_ONLY_USER'])
+      sql += "GRANT SELECT ON #{swap_table_name} TO #{ENV['READ_ONLY_USERS']};" if (ENV['READ_ONLY_USERS'])
       sql += "DROP TABLE IF EXISTS #{old_table_name};"
       sql += "ALTER TABLE #{destination_name} RENAME TO #{old_table_name};"
       sql += "ALTER TABLE #{swap_table_name} RENAME TO #{destination_name};"
       sql += "END;"
       destination_connection.execute(sql)
-      
+
       # Completed a full copy cycle, so reset the keys so we start again from scratch on the next run
       update_attribute(:max_updated_key, MIN_UPDATED_KEY)
       update_attribute(:max_primary_key, MIN_PRIMARY_KEY)
     end
   end
-  
+
   def merge_to_table_name
     # For FullSyncTable we want to merge results into the swap table, which will be switched later
     # (see the post_copy_steps method)
     swap_table_name
   end
-  
+
 end
