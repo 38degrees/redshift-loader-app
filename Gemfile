@@ -1,30 +1,34 @@
-source 'https://rubygems.org'
+source 'https://rubygems.org' do
+  ruby '2.4.9'
 
-ruby '2.6.0'
+  gem 'padrino'
 
-# Project requirements
-gem 'rake'
-gem 'unicorn'
-gem 's3', '~> 0.3.29' # Fixes private method delegation errors on Ruby 2.5+
-gem 'clockwork', '~> 2.0' #clock process
-gem 'sidekiq', '~> 5.0.4'
-gem 'sidekiq-limit_fetch'
-gem 'sidekiq-unique-jobs', '~> 5.0.10'
-gem 'newrelic_rpm' #app monitoring
-gem 'foreman'
+  gem 'pg', '~> 0.21' # Can't be higher with Ruby 2.3.8
 
-# Admin
-gem 'will_paginate', git: 'https://github.com/mislav/will_paginate'
-gem 'activate-admin', git: 'https://github.com/wordsandwriting/activate-admin'
-gem 'activate-tools', git: 'https://github.com/wordsandwriting/activate-tools'
+  gem 'activerecord', require: 'active_record'
+  gem 'activerecord4-redshift-adapter'
 
-# Component requirements
-gem 'bcrypt'
-gem 'activerecord', '>= 4.1.14.1', :require => 'active_record'
-gem 'pg'
-gem 'activerecord4-redshift-adapter'
+  gem 'bcrypt'
 
-# Test requirements
+  gem 'sidekiq'
+  gem 'sidekiq-limit_fetch'
+  gem 'sidekiq-unique-jobs', '~> 5.0.11' # Can't be higher with 2.3.8
 
-# Padrino Stable Gem
-gem 'padrino', '0.13.2'
+  gem 'clockwork'
+
+  gem 'rake'
+
+  gem 'unicorn'
+
+  gem 's3', '0.3.28' # un-Fixes private method delegation errors
+
+  gem 'newrelic_rpm'
+
+  gem 'foreman'
+
+  # Admin
+  gem 'will_paginate', git: 'https://github.com/mislav/will_paginate'
+
+  gem 'activate-admin', git: 'https://github.com/wordsandwriting/activate-admin'
+  gem 'activate-tools', git: 'https://github.com/wordsandwriting/activate-tools'
+end
