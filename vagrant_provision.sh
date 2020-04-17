@@ -73,9 +73,9 @@ su vagrant << EOF
     source ~/.bashrc
 
 
-    echo "*** STEP 3 - Installing ruby 2.2.6 using rbenv ***"
-    rbenv install 2.6.0
-    rbenv global 2.6.0
+    echo "*** STEP 3 - Installing ruby 2.4.9 using rbenv ***"
+    rbenv install 2.4.9
+    rbenv global 2.4.9
 
     gem install bundler
     rbenv rehash
