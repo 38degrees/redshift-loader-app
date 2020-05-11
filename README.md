@@ -1,6 +1,6 @@
 # Redshift Loader App
 
-Easily deployable to Heroku/Dokku etc. ruby app to incrementally load data from multiple postgres tables into redshift in order to keep a near-realtime replica of your production database for analytics. 
+Easily deployable to Heroku/Dokku etc. ruby app to incrementally load data from multiple postgres tables into redshift in order to keep a near-realtime replica of your production database for analytics.
 
 It can copy your schema from Postgres to Redshift, perform an initial data load and then keep it up-to-date with changes as long as your tables are either insert-only with a sequential primary key, or have an `updated_at` column with is indexed.
 
@@ -13,7 +13,7 @@ Log in to '/admin' with the credentials you just created.
 
 Each pair of postgres database and redshift database is called a 'Job'. Each job has multiple tables which specify tables to be copied, primary_keys, updated_keys and whether the table is insert_only.
 
-Create a new job, then specify a source_connection_string and destination_connection_string.
+Create a new job, then specify a `source_connection_string` and `destination_connection_string`. The `source_connection_string` only needs read-access to the source database. The `destination_connection_string` needs write access to the destination database.
 
 You can run `Job.find(x).setup` to extract all tables in the source database (public schema) and create them in the destination database (public schema). This will attempt to set `primary_key` and `updated_key` for each of the tables, but you will likely need to check and adjust details after you've run 'setup'.
 
@@ -66,3 +66,44 @@ than or equal to the frequency for the job.
 
 You can temporarily disable a specific table copy by updating `table.disabled` to `true`. This column should be visible on
 ActivateAdmin.
+
+
+# Creating users in the source and destination databases
+
+It is recommended to use separate, specific users for redshift-loader in your source & destination databases. This means you can limit access to read only the tables you need in the source database, and in both the source & destination databases you can better see which applications are consuming database time & resources.
+
+## Source database
+
+It is recommended you setup a separate, read-only user.
+
+```
+# Create user and grant access to database, and access to read the schema
+CREATE USER app_redshiftloader_source WITH PASSWORD '<RANDOM_SECURE_PASSWORD>';
+GRANT CONNECT ON DATABASE <YOUR_DATABASE_NAME> TO app_redshiftloader_source;
+GRANT USAGE ON SCHEMA <YOUR_SCHEMA_NAME> TO app_redshiftloader_source;
+
+# If you want to grant read-only access to specific tables use this:
+GRANT SELECT ON <TABLE_1> TO app_redshiftloader_source;
+GRANT SELECT ON <TABLE_2> TO app_redshiftloader_source;
+
+# If you want to grant read-only access to ALL tables which currently exist, use this:
+GRANT SELECT ON ALL TABLES IN SCHEMA <YOUR_SCHEMA_NAME> TO app_redshiftloader_source;
+
+# If you ALSO want to grant read-only access to any NEW table created in future, use this:
+ALTER DEFAULT PRIVILEGES IN SCHEMA <YOUR_SCHEMA_NAME> GRANT SELECT ON TABLES TO app_redshiftloader_source;
+```
+
+## Destination database
+
+It is recommended you setup a separate, read-write user - note, this user must also have permissions to create new tables for the `FULL_DATA_SYNC` mode of copying to work, even if copies of all tables already exist in the destination database.
+
+```
+# Create user and grant access to database, and access to read the schema and add tables to it
+CREATE USER app_redshiftloader_destination WITH PASSWORD '<RANDOM_SECURE_PASSWORD>';
+GRANT CONNECT ON DATABASE <YOUR_DATABASE_NAME> TO app_redshiftloader_destination;
+GRANT CREATE, USAGE ON SCHEMA <YOUR_SCHEMA_NAME> TO app_redshiftloader_destination;
+
+# Grant read-write permissions to all tables, and all future tables
+GRANT SELECT, INSERT, UPDATE, DELETE, TRUNCATE ON ALL TABLES IN SCHEMA <YOUR_SCHEMA_NAME> TO app_redshiftloader_destination;
+ALTER DEFAULT PRIVILEGES IN SCHEMA <YOUR_SCHEMA_NAME> GRANT SELECT, INSERT, UPDATE, DELETE, TRUNCATE ON TABLES TO app_redshiftloader_destination;
+```
