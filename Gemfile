@@ -1,5 +1,5 @@
 source 'https://rubygems.org' do
-  ruby '2.4.9'
+  ruby '2.6.6'
 
   gem 'padrino'
 
