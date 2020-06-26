@@ -1,0 +1,16 @@
+inherit_from: .rubocop_todo.yml
+
+AllCops:
+  EnabledByDefault: true
+  Exclude:
+    - db/**/*
+    - coverage/**/*
+    - public/**/*
+
+Metrics/BlockLength:
+  Exclude:
+    - Gemfile
+    - spec/**/*.rb
+
+Layout/ExtraSpacing:
+  Enabled: false
