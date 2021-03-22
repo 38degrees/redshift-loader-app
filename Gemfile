@@ -26,6 +26,8 @@ source 'https://rubygems.org' do
 
   gem 'foreman'
 
+  gem 'airbrake'
+
   # Admin
   gem 'will_paginate', git: 'https://github.com/mislav/will_paginate'
 
