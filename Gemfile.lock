@@ -40,6 +40,10 @@ GEM
       tzinfo (~> 1.1)
     addressable (2.7.0)
       public_suffix (>= 2.0.2, < 5.0)
+    airbrake (11.0.1)
+      airbrake-ruby (~> 5.1)
+    airbrake-ruby (5.2.0)
+      rbtree3 (~> 0.5)
     arel (6.0.4)
     bcrypt (3.1.13)
     builder (3.2.4)
@@ -102,6 +106,7 @@ GEM
       rack
     raindrops (0.19.1)
     rake (13.0.1)
+    rbtree3 (0.6.0)
     redis (4.1.4)
     ruby2_keywords (0.0.2)
     s3 (0.3.28)
@@ -140,6 +145,7 @@ DEPENDENCIES
   activate-tools!
   activerecord!
   activerecord4-redshift-adapter!
+  airbrake!
   bcrypt!
   clockwork!
   foreman!
