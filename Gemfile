@@ -1,5 +1,5 @@
 source 'https://rubygems.org' do
-  ruby '2.4.9'
+  ruby '2.5.9'
 
   gem 'padrino'
 
@@ -20,7 +20,7 @@ source 'https://rubygems.org' do
 
   gem 'unicorn'
 
-  gem 's3', '0.3.28' # un-Fixes private method delegation errors
+  gem 's3', '0.3.29' # un-Fixes private method delegation errors
 
   gem 'newrelic_rpm'
 
