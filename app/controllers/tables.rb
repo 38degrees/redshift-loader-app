@@ -1,9 +1,8 @@
 RedshiftLoaderApp::App.controller do
-
-  before do 
+  before do
     sign_in_required!
   end
-  
+
   get '/tables' do
     @tables = Table.all.order("tables.source_name")
     erb :tables

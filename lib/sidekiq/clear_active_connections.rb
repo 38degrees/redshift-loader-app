@@ -3,7 +3,7 @@
 
 module Sidekiq
   class ClearActiveConnections
-    def call(*args)
+    def call(*_args)
       yield
     ensure
       ::ActiveRecord::Base.clear_active_connections!

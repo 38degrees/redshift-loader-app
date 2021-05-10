@@ -23,7 +23,6 @@ ActiveSupport.use_standard_json_time_format = true
 # if you're including raw JSON in an HTML page.
 ActiveSupport.escape_html_entities_in_json = false
 
-
 ActiveRecord::Base.establish_connection(ENV['DATABASE_URL'])
 
 # Timestamps are in the utc by default.

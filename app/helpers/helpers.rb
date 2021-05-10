@@ -1,5 +1,4 @@
 RedshiftLoaderApp::App.helpers do
-
   def current_account
     @current_account ||= Account.find(session[:account_id]) if session[:account_id]
   end
@@ -11,5 +10,4 @@ RedshiftLoaderApp::App.helpers do
       request.xhr? ? halt : redirect('/admin')
     end
   end
-
 end

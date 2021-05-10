@@ -13,9 +13,7 @@ module RedshiftLoader
 
         current_account = Account.find(session[:account_id]) if session[:account_id]
 
-        if current_account.nil? || !current_account.admin?
-          return forbidden
-        end
+        return forbidden if current_account.nil? || !current_account.admin?
       end
 
       @app.call(env)
