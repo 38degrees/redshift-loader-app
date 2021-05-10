@@ -1,0 +1,67 @@
+AllCops:
+  CacheRootDirectory: tmp/cache/
+  Exclude:
+    - '**/bin/*'
+    - '**/db/migrate/*'
+    - '**/db/schema.rb'
+    - '**/node_modules/**/*'
+    - '**/vendor/**/*' # since we `bundle install --path vendor/bundle` on CI
+    - '**/tmp/**/*'
+    - '**/.git/**/*'
+    - '**/public/**/*'
+    - '**/rubocop_cache/**/*'
+    - 'Vagrantfile'
+    - 'config.ru'
+  NewCops: enable
+  TargetRubyVersion: 2.5.9
+
+Style/FrozenStringLiteralComment:
+  Enabled: false
+
+Style/StringLiterals:
+  Enabled: false
+
+Layout/LineLength:
+  Max: 186
+
+Metrics/AbcSize:
+  Max: 114
+
+Metrics/BlockLength:
+  Max: 82
+
+Metrics/ClassLength:
+  Max: 244
+
+Metrics/CyclomaticComplexity:
+  Max: 13
+
+Metrics/MethodLength:
+  Max: 62
+
+Metrics/PerceivedComplexity:
+  Max: 14
+
+Style/Documentation:
+  Enabled: false
+
+Style/GlobalVars:
+  AllowedVariables: [$redis]
+
+Naming/AccessorMethodName:
+  Enabled: false
+
+Naming/PredicateName:
+  Enabled: false
+
+Lint/BooleanSymbol:
+  Exclude:
+    - 'config/boot.rb'
+
+Lint/ShadowingOuterLocalVariable:
+  Exclude:
+    - 'models/table.rb'
+
+Security/Eval:
+  Exclude:
+    - 'models/clockwork_event.rb'
