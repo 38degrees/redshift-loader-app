@@ -20,7 +20,7 @@ class Account < ActiveRecord::Base
   #
   def self.authenticate(email, password)
     account = where("lower(email) = lower(?)", email).first if email.present?
-    account && account.has_password?(password) ? account : nil
+    account&.has_password?(password) ? account : nil
   end
 
   def has_password?(password)

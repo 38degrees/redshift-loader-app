@@ -15,12 +15,14 @@ Padrino::Logger::Config[:production][:stream] = :stdout
 # Add your before (RE)load hooks here
 #
 Padrino.before_load do
+  # pass
 end
 
 ##
 # Add your after (RE)load hooks here
 #
 Padrino.after_load do
+  # pass
 end
 
 Padrino.load!

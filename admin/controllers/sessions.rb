@@ -4,7 +4,8 @@ RedshiftLoaderApp::Admin.controllers :sessions do
   end
 
   post :create do
-    if account = Account.authenticate(params[:email], params[:password])
+    account = Account.authenticate(params[:email], params[:password])
+    if account
       set_current_account(account)
       redirect url(:base, :index)
     elsif Padrino.env == :development && params[:bypass]

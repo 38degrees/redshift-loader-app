@@ -32,9 +32,9 @@ class TableWorker
   # Need to schedule anotehr run AFTER unique lock is released
   def after_unlock
     logger.debug "Sidekiq Unique Jobs after_unlock hook triggered"
-    if @run_again
-      logger.info "@run_again was set, queuing another run of TableWorker for table ID #{@table_id}"
-      TableWorker.perform_async(@table_id, @lock_name)
-    end
+    return unless @run_again
+
+    logger.info "@run_again was set, queuing another run of TableWorker for table ID #{@table_id}"
+    TableWorker.perform_async(@table_id, @lock_name)
   end
 end

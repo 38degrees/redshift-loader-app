@@ -52,7 +52,7 @@ class Job < ActiveRecord::Base
   end
 
   def convert_column_type(column_type)
-    if column_types.has_key? column_type
+    if column_types.key? column_type
       column_types[column_type]
     else
       column_type
@@ -76,7 +76,7 @@ class Job < ActiveRecord::Base
   def setup
     setup_connection
 
-    unless tables.count == 0
+    unless tables.count.zero?
       puts "Aborting! Job already has tables attached. Setup requires a new job."
       return
     end
@@ -95,7 +95,7 @@ class Job < ActiveRecord::Base
       end
 
       # create entry in tables table
-      pk = source_connection.columns(table).select { |c| c.primary }
+      pk = source_connection.columns(table).select(&:primary)
       primary_key = if pk.count == 1
                       pk.first.name
                     else

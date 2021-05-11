@@ -1,7 +1,7 @@
 require 'net/http'
 
 class Table < ActiveRecord::Base
-  MIN_UPDATED_KEY = '1970-01-01'
+  MIN_UPDATED_KEY = '1970-01-01'.freeze
   MIN_PRIMARY_KEY = 0
 
   belongs_to :job
@@ -39,8 +39,8 @@ class Table < ActiveRecord::Base
 
   # rough-n-ready check if the tables have the same columns
   def check
-    source_columns = source_connection.columns(source_name).map { |col| col.name }
-    destination_columns = destination_connection.columns(destination_name).map { |col| col.name }
+    source_columns = source_connection.columns(source_name).map(&:name)
+    destination_columns = destination_connection.columns(destination_name).map(&:name)
     unless source_columns.sort == destination_columns.sort
       post_warning "Aborting copy! Tables #{source_name}, #{destination_name} don't match. (job #{job_id})"
       return false
@@ -72,12 +72,12 @@ class Table < ActiveRecord::Base
                         })
     end
 
-    if delete_on_reset
-      sql = "DELETE FROM #{destination_name} #{where_statement_for_source}"
-      logger.info "Deleting data from #{destination_name}: #{sql}"
-      destination_connection.execute(sql)
-      update_attribute(:delete_on_reset, nil)
-    end
+    return unless delete_on_reset
+
+    sql = "DELETE FROM #{destination_name} #{where_statement_for_source}"
+    logger.info "Deleting data from #{destination_name}: #{sql}"
+    destination_connection.execute(sql)
+    update_attribute(:delete_on_reset, nil)
   end
 
   def where_statement_for_source
@@ -132,7 +132,7 @@ class Table < ActiveRecord::Base
     result = new_rows
     logger.info "Retrieved #{result.count} rows from #{source_name}"
 
-    if result.count > 0
+    if result.count.positive?
       logger.info "Loading #{source_name} data to Redshift"
 
       temp_table_name = "stage_#{job_id}_#{source_name}"
@@ -333,13 +333,13 @@ class Table < ActiveRecord::Base
 
   # This method should live elsewhere, putting here as a quick fix!
   def post_to_slack(message)
-    if ENV['SLACK_URL']
-      uri = URI.parse(ENV['SLACK_URL'])
-      https = Net::HTTP.new(uri.host, uri.port)
-      https.use_ssl = true
-      request = Net::HTTP::Post.new(uri.request_uri, { 'Content-Type' => 'text/json' })
-      request.body = { text: "*RedshiftLoader:* #{message}" }.to_json
-      https.request(request)
-    end
+    return unless ENV['SLACK_URL']
+
+    uri = URI.parse(ENV['SLACK_URL'])
+    https = Net::HTTP.new(uri.host, uri.port)
+    https.use_ssl = true
+    request = Net::HTTP::Post.new(uri.request_uri, { 'Content-Type' => 'text/json' })
+    request.body = { text: "*RedshiftLoader:* #{message}" }.to_json
+    https.request(request)
   end
 end

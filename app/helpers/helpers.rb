@@ -4,10 +4,10 @@ RedshiftLoaderApp::App.helpers do
   end
 
   def sign_in_required!
-    unless current_account
-      flash[:notice] = I18n.t("app.helpers.helpers.sign_in_required_msg")
-      session[:return_to] = request.url
-      request.xhr? ? halt : redirect('/admin')
-    end
+    return if current_account
+
+    flash[:notice] = I18n.t("app.helpers.helpers.sign_in_required_msg")
+    session[:return_to] = request.url
+    request.xhr? ? halt : redirect('/admin')
   end
 end

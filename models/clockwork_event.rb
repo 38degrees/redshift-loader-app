@@ -28,31 +28,30 @@ class ClockworkEvent < ActiveRecord::Base
 
   def perform
     reload
-    unless running
-      update_attribute(:running, true)
-      update_attribute(:last_run_at, DateTime.now)
-      update_attribute(:runs, (runs || 0) + 1)
+    return if running
 
-      check_thread = Thread.new do
-        loop do
-          sleep 60
-          update_attribute(:last_run_at, DateTime.now)
-          puts "#{name} checking in..."
-        end
+    update_attribute(:running, true)
+    update_attribute(:last_run_at, DateTime.now)
+    update_attribute(:runs, (runs || 0) + 1)
+
+    check_thread = Thread.new do
+      loop do
+        sleep 60
+        update_attribute(:last_run_at, DateTime.now)
+        puts "#{name} checking in..."
       end
+    end
 
-      begin
-        eval(statement)
-        update_attribute(:last_succeeded_at, DateTime.now)
-        update_attribute(:error_message, nil)
-      rescue Exception => e
-        update_attribute(:error_message, e.message)
-        raise e
-      ensure
-        update_attribute(:running, false)
-        check_thread.exit
-      end
-
+    begin
+      eval(statement)
+      update_attribute(:last_succeeded_at, DateTime.now)
+      update_attribute(:error_message, nil)
+    rescue StandardError => e
+      update_attribute(:error_message, e.message)
+      raise e
+    ensure
+      update_attribute(:running, false)
+      check_thread.exit
     end
   end
 
