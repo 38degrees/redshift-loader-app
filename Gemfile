@@ -26,7 +26,10 @@ source 'https://rubygems.org' do
 
   gem 'foreman'
 
+  # Error reporting
   gem 'airbrake'
+  gem 'sentry-ruby'
+  gem 'sentry-sidekiq'
 
   # Admin
   gem 'will_paginate', git: 'https://github.com/mislav/will_paginate'
