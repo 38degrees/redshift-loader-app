@@ -1,12 +1,8 @@
-Padrino.before_load do
-  if ENV['SENTRY_DSN']
-    require 'sentry-ruby'
-    require 'sentry-sidekiq'
+return unless ENV['SENTRY_DSN']
 
-    Sentry.init do |config|
-      config.dsn = ENV['SENTRY_DSN']
-    end
+require 'sentry-ruby'
+require 'sentry-sidekiq'
 
-    Padrino.use Sentry::Rack::CaptureExceptions
-  end
+Sentry.init do |config|
+  config.dsn = ENV['SENTRY_DSN']
 end
