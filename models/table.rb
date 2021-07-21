@@ -137,7 +137,7 @@ class Table < ActiveRecord::Base
           logger.info "Loading #{source_name} data to Redshift"
 
           temp_table_name = "stage_#{job_id}_#{source_name}"
-          destination_connection.execute("CREATE TEMP TABLE #{temp_table_name} (LIKE #{destination_name});")
+          destination_connection.execute("CREATE TEMP TABLE IF NOT EXISTS #{temp_table_name} (LIKE #{destination_name});")
 
           copy_results_to_table(temp_table_name, result)
           merge_results(temp_table_name, merge_to_table_name)
