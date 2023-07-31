@@ -1,0 +1,11 @@
+name: Dependabot auto-approve and auto-merge
+on: pull_request
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  dependabot-workflow:
+    uses: 38degrees/github-workflows/workflows/dependabot-auto-approve-and-merge.yml@main
+    
