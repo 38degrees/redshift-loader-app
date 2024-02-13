@@ -12,7 +12,7 @@ source 'https://rubygems.org' do
 
   gem 'sidekiq'
   gem 'sidekiq-limit_fetch'
-  gem 'sidekiq-unique-jobs', '~> 5.0.11' # Can't be higher with 2.3.8
+  gem 'sidekiq-unique-jobs', '~> 7.1.33' # Can't be higher with 2.3.8
 
   gem 'clockwork'
 
