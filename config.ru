@@ -8,7 +8,6 @@ require 'sidekiq/web'
 
 require File.expand_path("../config/boot.rb", __FILE__)
 
-Sidekiq::Web.set(:session_secret, ENV['SESSION_SECRET'])
 Sidekiq::Web.use RedshiftLoader::SidekiqAuth
 
 run Rack::URLMap.new(

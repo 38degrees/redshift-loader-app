@@ -3,15 +3,15 @@ source 'https://rubygems.org' do
 
   gem 'padrino', '0.16.0.pre3'
 
-  gem 'pg', 
+  gem 'pg' 
 
   gem 'activerecord', require: 'active_record'
-  gem 'activerecord4-redshift-adapter'
+  gem 'activerecord6-redshift-adapter', git: 'https://github.com/38degrees/activerecord6-redshift-adapter.git', ref: '45e777b'
 
   gem 'bcrypt'
 
   gem 'sidekiq', '~> 7'
-  gem 'sidekiq-limit_fetch', 
+  gem 'sidekiq-limit_fetch' 
   gem 'sidekiq-unique-jobs', '~> 8' 
 
   # TODO: Replace concurrent-ruby commit ref with rubygems version following author release
@@ -41,4 +41,13 @@ source 'https://rubygems.org' do
 
   gem 'activate-admin', git: 'https://github.com/wordsandwriting/activate-admin'
   gem 'activate-tools', git: 'https://github.com/wordsandwriting/activate-tools'
+
+  # Stuff that's being removed from Ruby standard lib in ruby-3.5.0
+  # We're just getting ahead of the curve on this one and also it helps silence warnings in the build logs.
+  gem 'rexml'
+  gem 'ostruct'
+  gem 'fiddle'
+  gem 'mutex'
+  gem 'mutex_m'
+  gem 'csv'
 end
