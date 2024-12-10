@@ -1,3 +1,6 @@
+# WORKAROUND: if you encounter segfaults with pg and postgres locally, try adding 'gssencmode=disable' to connection string 
+#             See known issue https://github.com/ged/ruby-pg/issues/311 & https://github.com/ged/ruby-pg/issues/538
+#             Workaround option is only suitable for development envs as unsure of security implications in live env 
 DATABASE_URL=postgres://loader:mypassword@localhost:5432/loader_dev?schema_search_path=loader
 
 SYNC_DB_EVENTS_FREQUENCY_MINS=5

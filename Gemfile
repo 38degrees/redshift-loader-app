@@ -6,7 +6,7 @@ source 'https://rubygems.org' do
   gem 'pg' 
 
   gem 'activerecord', require: 'active_record'
-  gem 'activerecord6-redshift-adapter', git: 'https://github.com/38degrees/activerecord6-redshift-adapter.git', ref: '45e777b'
+  gem 'activerecord6-redshift-adapter', git: 'https://github.com/38degrees/activerecord6-redshift-adapter.git', ref: '2aa4069'
 
   gem 'bcrypt'
 
@@ -38,7 +38,7 @@ source 'https://rubygems.org' do
 
   # Admin
   gem 'will_paginate', git: 'https://github.com/mislav/will_paginate'
-
+  gem 'activerecord_any_of', github: 'oelmekki/activerecord_any_of' # because we're using ActiveRecord
   gem 'activate-admin', git: 'https://github.com/wordsandwriting/activate-admin'
   gem 'activate-tools', git: 'https://github.com/wordsandwriting/activate-tools'
 

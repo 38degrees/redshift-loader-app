@@ -293,7 +293,8 @@ class Table < ActiveRecord::Base
 
     def s3
         S3::Service.new(:access_key_id => ENV['AWS_ACCESS_KEY_ID'],
-                          :secret_access_key => ENV['AWS_SECRET_ACCESS_KEY'])
+                          :secret_access_key => ENV['AWS_SECRET_ACCESS_KEY'],
+                          :use_ssl => true)
     end
 
     def bucket_name
@@ -301,6 +302,9 @@ class Table < ActiveRecord::Base
     end
 
     def bucket
+        # puts 'HEY HAY HEY'
+        # puts s3.buckets
+        # puts s3.buckets.inspect
         s3.buckets.find(bucket_name)
     end
 
