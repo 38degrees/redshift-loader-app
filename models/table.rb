@@ -302,9 +302,6 @@ class Table < ActiveRecord::Base
     end
 
     def bucket
-        # puts 'HEY HAY HEY'
-        # puts s3.buckets
-        # puts s3.buckets.inspect
         s3.buckets.find(bucket_name)
     end
 
