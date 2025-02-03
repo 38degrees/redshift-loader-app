@@ -20,4 +20,7 @@ end
 
 Sidekiq.configure_client do |config|
   config.redis = { url: ENV['REDIS_URL'] }
+  config.client_middleware do |chain|
+    chain.add SidekiqUniqueJobs::Middleware::Client
+  end
 end
