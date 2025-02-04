@@ -24,8 +24,7 @@ source 'https://rubygems.org' do
 
   gem 'unicorn'
 
-  # Why are we not using the official AWS SDK here 🤨
-  gem 's3', '0.3.29' # un-Fixes private method delegation errors
+  gem 'aws-sdk-s3', '~> 1'
 
   gem 'newrelic_rpm'
 

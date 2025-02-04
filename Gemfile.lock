@@ -60,12 +60,26 @@ GEM
       minitest (~> 5.1)
       tzinfo (~> 1.1)
       zeitwerk (~> 2.2, >= 2.2.2)
-    addressable (2.8.0)
-      public_suffix (>= 2.0.2, < 5.0)
     airbrake (13.0.4)
       airbrake-ruby (~> 6.0)
     airbrake-ruby (6.2.2)
       rbtree3 (~> 0.6)
+    aws-eventstream (1.3.0)
+    aws-partitions (1.1044.0)
+    aws-sdk-core (3.217.1)
+      aws-eventstream (~> 1, >= 1.3.0)
+      aws-partitions (~> 1, >= 1.992.0)
+      aws-sigv4 (~> 1.9)
+      jmespath (~> 1, >= 1.6.1)
+    aws-sdk-kms (1.97.0)
+      aws-sdk-core (~> 3, >= 3.216.0)
+      aws-sigv4 (~> 1.5)
+    aws-sdk-s3 (1.179.0)
+      aws-sdk-core (~> 3, >= 3.216.0)
+      aws-sdk-kms (~> 1)
+      aws-sigv4 (~> 1.5)
+    aws-sigv4 (1.11.0)
+      aws-eventstream (~> 1, >= 1.0.2)
     base64 (0.2.0)
     bcrypt (3.1.20)
     bigdecimal (3.1.8)
@@ -79,6 +93,7 @@ GEM
     foreman (0.87.1)
     i18n (0.9.5)
       concurrent-ruby (~> 1.0)
+    jmespath (1.6.2)
     kgio (2.11.4)
     logger (1.6.2)
     mail (2.8.1)
@@ -141,8 +156,6 @@ GEM
       padrino-core (= 0.16.0.pre3)
     padrino-support (0.16.0.pre3)
     pg (1.5.9)
-    proxies (0.2.3)
-    public_suffix (4.0.6)
     rack (3.1.8)
     rack-protection (4.1.1)
       base64 (>= 0.1.0)
@@ -159,9 +172,6 @@ GEM
       connection_pool
     rexml (3.3.9)
     ruby2_keywords (0.0.5)
-    s3 (0.3.29)
-      addressable
-      proxies
     sentry-ruby (5.22.0)
       bigdecimal
       concurrent-ruby (~> 1.0, >= 1.0.2)
@@ -207,6 +217,7 @@ DEPENDENCIES
   activerecord6-redshift-adapter!
   activerecord_any_of!
   airbrake!
+  aws-sdk-s3 (~> 1)!
   bcrypt!
   clockwork!
   concurrent-ruby!
@@ -221,7 +232,6 @@ DEPENDENCIES
   pg!
   rake!
   rexml!
-  s3 (= 0.3.29)!
   sentry-ruby!
   sentry-sidekiq!
   sidekiq (~> 7)!
