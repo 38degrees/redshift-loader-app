@@ -1,5 +1,5 @@
 require 'net/http'
-
+require 'aws-sdk-s3'
 class Table < ActiveRecord::Base
     MIN_UPDATED_KEY = '1970-01-01'
     MIN_PRIMARY_KEY = 0
@@ -183,29 +183,27 @@ class Table < ActiveRecord::Base
           end
 
           filenames << filename
-          text_file = bucket.objects.build(filename)
-          text_file.content = csv_string
-          text_file.save
+          text_file_obj = bucket.object(filename)
+          text_file_obj.put(body: csv_string)
         end
 
         # Create the manifest, listing all the data files
         manifest_content = { "entries" => [] }
         filenames.each { |f|  manifest_content["entries"] << { "url" => "s3://#{bucket_name}/#{f}", "mandatory" => true }  }
         manifest_filename = "#{file_prefix}.manifest"
-        manifest_file = bucket.objects.build(manifest_filename)
-        manifest_file.content = manifest_content.to_json
-        manifest_file.save
+        manifest_file_obj = bucket.object(manifest_filename)
+        manifest_file_obj.put(body: manifest_content.to_json)
 
         logger.info "Copying all chunks of #{source_name} data from S3 to Redshift"
         # Import the data to Redshift
         destination_connection.execute("COPY #{table_name} from 's3://#{bucket_name}/#{manifest_filename}'
             credentials 'aws_access_key_id=#{ENV['AWS_ACCESS_KEY_ID']};aws_secret_access_key=#{ENV['AWS_SECRET_ACCESS_KEY']}' delimiter ',' CSV QUOTE AS '\"'  manifest;")
 
-        manifest_file.destroy
+        manifest_file_obj.delete
 
         filenames.each do |f|
           logger.info " - Deleting chunk of #{source_name} data from S3 (#{f})"
-          bucket.objects.find(f).destroy
+          bucket.object(f).delete
         end
 
       elsif ENV['COPY_VIA_S3']
@@ -221,9 +219,8 @@ class Table < ActiveRecord::Base
           end
 
           filename = "#{job_id}_#{source_name}_#{Time.now.to_i}.txt"
-          text_file = bucket.objects.build(filename)
-          text_file.content = csv_string
-          text_file.save
+          text_file_obj = bucket.object(filename)
+          text_file_obj.put(body: csv_string)
 
           logger.info " - Copying chunk of #{source_name} data from S3 to Redshift"
           # Import the data to Redshift
@@ -231,7 +228,7 @@ class Table < ActiveRecord::Base
               credentials 'aws_access_key_id=#{ENV['AWS_ACCESS_KEY_ID']};aws_secret_access_key=#{ENV['AWS_SECRET_ACCESS_KEY']}' delimiter ',' CSV QUOTE AS '\"' ;")
 
           logger.info " - Deleting chunk of #{source_name} data from S3"
-          text_file.destroy
+          text_file_obj.delete
         end
 
       else
@@ -284,25 +281,23 @@ class Table < ActiveRecord::Base
     end
 
     def import_row_limit
-        ENV['IMPORT_ROW_LIMIT'] ? ENV['IMPORT_ROW_LIMIT'].to_i : 100000
+      ENV['IMPORT_ROW_LIMIT'] ? ENV['IMPORT_ROW_LIMIT'].to_i : 100000
     end
 
     def import_chunk_size
-        ENV['IMPORT_CHUNK_SIZE'] ? ENV['IMPORT_CHUNK_SIZE'].to_i : 10000
+      ENV['IMPORT_CHUNK_SIZE'] ? ENV['IMPORT_CHUNK_SIZE'].to_i : 10000
     end
 
     def s3
-        S3::Service.new(:access_key_id => ENV['AWS_ACCESS_KEY_ID'],
-                          :secret_access_key => ENV['AWS_SECRET_ACCESS_KEY'],
-                          :use_ssl => true)
+      Aws::S3::Resource.new
     end
 
     def bucket_name
-        ENV['S3_BUCKET_NAME']
+      ENV['S3_BUCKET_NAME']
     end
 
     def bucket
-        s3.buckets.find(bucket_name)
+      s3.bucket(bucket_name)
     end
 
     def get_destination_column_limits
