@@ -159,8 +159,8 @@ class Table < ActiveRecord::Base
           merge_results(temp_table_name, merge_to_table_name)
           update_max_values(temp_table_name)
 
-          destination_connection.execute("DROP TABLE #{temp_table_name};")
           log_row_drift
+          destination_connection.execute("DROP TABLE #{temp_table_name};")
         end
 
         #Log for benchmarking
