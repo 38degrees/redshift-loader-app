@@ -116,9 +116,16 @@ class Table < ActiveRecord::Base
     end
 
     def log_row_drift
-        source_count = source_connection.exec_query("SELECT COUNT(*) AS count FROM #{source_name}").first["count"].to_i
-        dest_count = destination_connection.exec_query("SELECT COUNT(*) AS count FROM #{destination_name}").first["count"].to_i
+        source_sql = "SELECT COUNT(*) AS count FROM #{source_name}"
+        dest_sql = "SELECT COUNT(*) AS count FROM #{destination_name}"
+
+        source_result = source_connection.execute(source_sql)
+        dest_result = destination_connection.execute(dest_sql)
+
+        source_count = source_result.first['count'].to_i
+        dest_count = dest_result.first['count'].to_i
         drift = source_count - dest_count
+
         logger.info "Drift for #{source_name}: source=#{source_count}, destination=#{dest_count}, drift=#{drift}"
       rescue => e
         logger.error "Error calculating drift for #{source_name}: #{e.message}"
