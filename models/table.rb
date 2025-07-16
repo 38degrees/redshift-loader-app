@@ -115,6 +115,22 @@ class Table < ActiveRecord::Base
       end
     end
 
+    def log_row_drift
+        source_sql = "SELECT COUNT(*) AS count FROM #{source_name}"
+        dest_sql = "SELECT COUNT(*) AS count FROM #{destination_name}"
+
+        source_result = source_connection.execute(source_sql)
+        dest_result = destination_connection.execute(dest_sql)
+
+        source_count = source_result.first['count'].to_i
+        dest_count = dest_result.first['count'].to_i
+        drift = source_count - dest_count
+
+        logger.info "Drift for #{source_name}: source=#{source_count}, destination=#{dest_count}, drift=#{drift}"
+      rescue => e
+        logger.error "Error calculating drift for #{source_name}: #{e.message}"
+    end
+
     def copy_now
         started_at = Time.now
         return 0 unless (self.enabled? && self.check)
@@ -143,6 +159,7 @@ class Table < ActiveRecord::Base
           merge_results(temp_table_name, merge_to_table_name)
           update_max_values(temp_table_name)
 
+          log_row_drift
           destination_connection.execute("DROP TABLE #{temp_table_name};")
         end
 
