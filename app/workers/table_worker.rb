@@ -33,10 +33,13 @@ class TableWorker
   # Sidekiq Unique Jobs hook - run once block has yielded and lock is released.
   # Need to schedule anotehr run AFTER unique lock is released
   def after_unlock
-    logger.debug "Sidekiq Unique Jobs after_unlock hook triggered"
+    logger.info "[after_unlock] Hook triggered for table_id=#{@table_id}, lock_name=#{@lock_name}, run_again=#{@run_again.inspect}"
+  
     if @run_again
-      logger.info "@run_again was set, queuing another run of TableWorker for table ID #{@table_id}"
+      logger.info "[after_unlock] @run_again is true — re-enqueuing TableWorker for table_id=#{@table_id}, lock_name=#{@lock_name}"
       TableWorker.perform_async(@table_id, @lock_name)
+    else
+      logger.info "[after_unlock] @run_again is false — no re-enqueue for table_id=#{@table_id}"
     end
   end
 end
