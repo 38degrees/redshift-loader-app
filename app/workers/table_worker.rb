@@ -19,13 +19,15 @@ class TableWorker
   def perform(table_id, lock_name)
     @table_id = table_id
     @lock_name = lock_name
-
+    
+    logger.info "STARTING job for jid=#{jid}, table_id=#{@table_id}, lock_name=#{@lock_name}"
     t = Table.find(@table_id)
     rows_copied = t.copy_now
     
     # Should schedule again if we hit the row limit, as there are more rows to copy.
     # The until_executed lock is still in play here, so do the scheduling in after_unlock
     @run_again = (rows_copied >= t.import_row_limit)
+    logger.info "FINISHED job for jid=#{jid}, table_id=#{@table_id}, lock_name=#{@lock_name}"
   end
   
   # Sidekiq Unique Jobs hook - run once block has yielded and lock is released.
