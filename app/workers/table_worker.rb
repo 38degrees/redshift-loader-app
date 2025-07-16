@@ -9,7 +9,7 @@ class TableWorker
 sidekiq_options retry: 1,
                 lock: :until_executed,
                 lock_args_method: :lock_args,
-                lock_expiration: 1.hour
+                lock_ttl: 1.hour
 
   # Lock on the lock_name arg
   def self.lock_args(args)

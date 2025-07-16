@@ -9,7 +9,7 @@ class ClockworkEventWorker
   sidekiq_options retry: 1,
                   lock: :until_executed,
                   lock_args_method: :lock_args,
-                  lock_expiration: 1.hour
+                  lock_ttl: 1.hour
 
   def self.lock_args(args)
     [args[0]]  # args is an array of perform method arguments, so we pick the first one
