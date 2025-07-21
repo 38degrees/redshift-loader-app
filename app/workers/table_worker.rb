@@ -29,6 +29,7 @@ sidekiq_options retry: 1,
     logger.info "[perform] FINISH for jid=#{jid}, table_id=#{@table_id}, lock_name=#{@lock_name}, run_again=#{run_again}"
   
     # Should schedule again if we hit the row limit, as there are more rows to copy
+    # The until_executed lock is still in play here, so do the scheduling in after_unlock
     if run_again
       logger.info "[perform] run_again=true — re-enqueuing for table_id=#{@table_id}, lock_name=#{@lock_name}"
       TableWorker.perform_async(@table_id, @lock_name)
